@@ -11,6 +11,7 @@ class SubscriptionCard extends Component
     public string $redirectUrl;
     public string $text;
     public string $icon;
+    public bool $primary = false;
 
     public function mount()
     {
@@ -27,13 +28,28 @@ class SubscriptionCard extends Component
         }
         if (
             $subscription &&
+            $subscription->plan->isFree()
+        ) {
+            $this->icon = $this->get_subscription_icon();
+            $this->text = 'Free Trial';
+        }
+        if (
+            $subscription &&
+            $subscription->plan->isFree() &&
             $subscription->trial_ends_at &&
             $subscription->trial_ends_at->isBetween(now(), now()->addDays(7))
         ) {
             $this->icon = $this->get_free_trial_icon();
             $this->text = 'Free trial ending soon';
         }
-
+        if (
+            $subscription &&
+            !$subscription->plan->isFree() &&
+            !$subscription->trial_ends_at->isBetween(now(), now()->addDays(7) &&
+            !$subscription->ends_at->isBetween(now(), now()->addDays(7)))
+        ) {
+            $this->text = $subscription->plan->name;
+        }
         $this->redirectUrl = Billing::getUrl();
     }
     private function get_free_trial_icon(): string

@@ -162,11 +162,13 @@ class ClientPanelProvider extends PanelProvider
             })
             ->databaseNotifications()
             ->tenant(Team::class, ownershipRelationship: 'team', slugAttribute: 'slug')
-            // ->tenantRegistration(RegisterTeam::class)
+            ->tenantRegistration(RegisterTeam::class)
             ->maxContentWidth(MaxWidth::Full)
-            ->tenantProfile(EditTeamProfile::class, function () {
-                return Auth::user() && Auth::user()->hasRole('Admin');
-            })
+            ->tenantProfile(EditTeamProfile::class)
+            ->tenantMenuItems([
+                'profile' => MenuItem::make()->label('Edit team profile'),
+                'register' => MenuItem::make()->label('Register New Company')->visible(false),
+            ])
             ->renderHook('panels::footer', fn() => view('filament.components.footer'))
             ->renderHook('panels::topbar.before', function () {
                 return View::make('filament.client.pages.notices')->render();
@@ -175,7 +177,7 @@ class ClientPanelProvider extends PanelProvider
                 $team = Filament::getTenant();
                 $subscription = $team->activePlanSubscriptions()->first();
                 $plan = $subscription->plan;
-                if (($subscription->ends_at->isBetween(now(), now()->addDays(7))) || ($plan->isFree() && $subscription->trial_ends_at->isBetween(now(), now()->addDays(7)))) {
+                if (($subscription->ends_at->isBetween(now(), now()->addDays(7))) || ($plan->isFree()) || ($subscription->trial_ends_at->isBetween(now(), now()->addDays(7)))) {
                     return Blade::render('@livewire(\'subscription-card\')');
                 }
                 return '';

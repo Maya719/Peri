@@ -91,7 +91,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('Gender')
                                                 ->required()
                                                 ->options([
-                                                    'male'   => 'Male',
+                                                    'male' => 'Male',
                                                     'female' => 'Female',
                                                 ]),
                                             DatePicker::make('date_of_birth')
@@ -121,8 +121,8 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('Marital Status')
                                                 ->required()
                                                 ->options([
-                                                    'single'   => 'Single',
-                                                    'married'  => 'Married',
+                                                    'single' => 'Single',
+                                                    'married' => 'Married',
                                                 ]),
 
                                             Forms\Components\TextInput::make('designation')
@@ -241,7 +241,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('Permission')
                                                 ->options([
                                                     'recommend' => 'Recommender',
-                                                    'approve'   => 'Approver',
+                                                    'approve' => 'Approver',
                                                 ])
                                                 ->required(),
 
@@ -283,7 +283,8 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                     Forms\Components\Grid::make(2)->schema([
                                         Forms\Components\TextInput::make('bank_details.salary_currency')
                                             ->afterStateHydrated(function (Forms\Components\TextInput $component, $state) {
-                                                if (filled($state)) return;
+                                                if (filled($state))
+                                                    return;
 
                                                 $currency = null;
                                                 $companyDetail = Filament::getTenant();
@@ -423,7 +424,8 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('')
                                                 ->options(function () {
                                                     $team = Filament::getTenant();
-                                                    if (!$team) return [];
+                                                    if (!$team)
+                                                        return [];
 
                                                     return \App\Models\Fund::where('team_id', $team->id)
                                                         ->where('is_active', true)
@@ -486,14 +488,14 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('Resignation / Termination Date')
                                                 ->required()
                                                 ->native(false)->closeOnDateSelection()
-                                                ->hidden(fn(callable $get) => ! $get('resigned')),
+                                                ->hidden(fn(callable $get) => !$get('resigned')),
                                         ]),
                                     Forms\Components\Grid::make(1)
                                         ->schema([
                                             Forms\Components\Textarea::make('remarks')
                                                 ->label('Remarks')
                                                 ->required()
-                                                ->hidden(fn(callable $get) => ! $get('resigned')),
+                                                ->hidden(fn(callable $get) => !$get('resigned')),
                                         ]),
                                 ]),
                         ])

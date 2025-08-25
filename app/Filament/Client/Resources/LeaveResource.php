@@ -142,10 +142,10 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                 ->options(function () {
                                                     $user = Auth::user();
                                                     if (in_array($user->attendance_type, ['offsite', 'hybrid'])) {
-                                                        return ['regular' => 'Regular Leave'];
+                                                        return ['regular' => 'Full Day Leave'];
                                                     }
                                                     return [
-                                                        'regular' => 'Regular Leave',
+                                                        'regular' => 'Full Day Leave',
                                                         'half_day' => 'Half Day Leave',
                                                         'short_leave' => 'Short Leave',
                                                     ];
@@ -243,18 +243,18 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                 ->where('starting_date', '>=', $startDate)
                                                 ->get()
                                                 ->sum(function ($leave) {
-                                                    // Determine leave duration based on the type.
-                                                    if ($leave->type === 'regular') {
-                                                        $start = \Carbon\Carbon::parse($leave->starting_date);
-                                                        $end = \Carbon\Carbon::parse($leave->ending_date);
-                                                        return $start->diffInDays($end) + 1;
-                                                    } elseif ($leave->type === 'half_day') {
-                                                        return 0.5;
-                                                    } elseif ($leave->type === 'short_leave') {
-                                                        return 0.25;
-                                                    }
-                                                    return 0;
-                                                });
+                                                // Determine leave duration based on the type.
+                                                if ($leave->type === 'regular') {
+                                                    $start = \Carbon\Carbon::parse($leave->starting_date);
+                                                    $end = \Carbon\Carbon::parse($leave->ending_date);
+                                                    return $start->diffInDays($end) + 1;
+                                                } elseif ($leave->type === 'half_day') {
+                                                    return 0.5;
+                                                } elseif ($leave->type === 'short_leave') {
+                                                    return 0.25;
+                                                }
+                                                return 0;
+                                            });
                                             return $usedPaidLeaves >= $allowedCount;
                                         })
                                         ->live()
@@ -463,28 +463,28 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                         // STEP 2: Get holidays for filtering
                                                         $holidays = Filament::getTenant()->holidays()
                                                             ->where(function ($query) use ($user) {
-                                                                $query->where('apply', 'all')
-                                                                    ->orWhere(function ($q) use ($user) {
-                                                                        $q->where('apply', 'user')
-                                                                            ->whereRaw('JSON_CONTAINS(users, JSON_QUOTE(?))', [(string) $user->id]);
-                                                                    })
-                                                                    ->orWhere(function ($q) use ($user) {
-                                                                        $q->where('apply', 'shift')
-                                                                            ->whereRaw('JSON_CONTAINS(shifts, JSON_QUOTE(?))', [(string) $user->assignedShift?->shift?->id]);
-                                                                    })
-                                                                    ->orWhere(function ($q) use ($user) {
-                                                                        $q->where('apply', 'department')
-                                                                            ->whereRaw('JSON_CONTAINS(departments, JSON_QUOTE(?))', [(string) $user->assignedDepartment?->department?->id]);
-                                                                    });
-                                                            })
+                                                            $query->where('apply', 'all')
+                                                                ->orWhere(function ($q) use ($user) {
+                                                                    $q->where('apply', 'user')
+                                                                        ->whereRaw('JSON_CONTAINS(users, JSON_QUOTE(?))', [(string) $user->id]);
+                                                                })
+                                                                ->orWhere(function ($q) use ($user) {
+                                                                    $q->where('apply', 'shift')
+                                                                        ->whereRaw('JSON_CONTAINS(shifts, JSON_QUOTE(?))', [(string) $user->assignedShift?->shift?->id]);
+                                                                })
+                                                                ->orWhere(function ($q) use ($user) {
+                                                                    $q->where('apply', 'department')
+                                                                        ->whereRaw('JSON_CONTAINS(departments, JSON_QUOTE(?))', [(string) $user->assignedDepartment?->department?->id]);
+                                                                });
+                                                        })
                                                             ->where(function ($query) use ($start, $end) {
-                                                                $query->whereBetween('starting_date', [$start, $end])
-                                                                    ->orWhereBetween('ending_date', [$start, $end])
-                                                                    ->orWhere(function ($q) use ($start, $end) {
-                                                                        $q->where('starting_date', '<=', $start)
-                                                                            ->where('ending_date', '>=', $end);
-                                                                    });
-                                                            })
+                                                            $query->whereBetween('starting_date', [$start, $end])
+                                                                ->orWhereBetween('ending_date', [$start, $end])
+                                                                ->orWhere(function ($q) use ($start, $end) {
+                                                                    $q->where('starting_date', '<=', $start)
+                                                                        ->where('ending_date', '>=', $end);
+                                                                });
+                                                        })
                                                             ->get();
 
                                                         $holidayDates = collect();
@@ -734,8 +734,8 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                             ->map(function ($leave) {
                                                 $duration = match ($leave->type) {
                                                     'regular' => \Carbon\Carbon::parse($leave->starting_date)->diffInDays(\Carbon\Carbon::parse($leave->ending_date)) + 1 . ' day(s) (' .
-                                                        \Carbon\Carbon::parse($leave->starting_date)->format('M d, Y') . ' - ' .
-                                                        \Carbon\Carbon::parse($leave->ending_date)->format('M d, Y') . ')',
+                                                    \Carbon\Carbon::parse($leave->starting_date)->format('M d, Y') . ' - ' .
+                                                    \Carbon\Carbon::parse($leave->ending_date)->format('M d, Y') . ')',
                                                     'half_day' => 'Half day on ' . \Carbon\Carbon::parse($leave->starting_date)->format('M d, Y'),
                                                     'short_leave' => 'Short leave on ' . \Carbon\Carbon::parse($leave->starting_date)->format('M d, Y'),
                                                     default => '',
@@ -796,9 +796,9 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                         // Get eligible leave types
                                         $leaveTypes = Filament::getTenant()->leaveTypes()
                                             ->where(function ($query) use ($applyOn) {
-                                                $query->where('apply_on', 'all')
-                                                    ->orWhere('apply_on', $applyOn);
-                                            })
+                                            $query->where('apply_on', 'all')
+                                                ->orWhere('apply_on', $applyOn);
+                                        })
                                             ->get();
 
                                         $now = now();
@@ -879,7 +879,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
 
                                 // Standard approval flow for other leave requests
                                 $currentUserRoleId = Auth::user()->roles->first()->id ?? null;
-                                $currentLevel = (int)($leave->leaveLogs()->max('level') ?? 0);
+                                $currentLevel = (int) ($leave->leaveLogs()->max('level') ?? 0);
                                 $currentLevel = $currentLevel === 0 ? 1 : $currentLevel;
 
                                 // Get the approval steps for the current level for this specific user's leave
@@ -955,7 +955,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                 }
 
                                 $currentUserRoleId = $userRole->id;
-                                $currentLevel = (int)($leave->leaveLogs()->max('level') ?? 0);
+                                $currentLevel = (int) ($leave->leaveLogs()->max('level') ?? 0);
                                 $currentLevel = $currentLevel === 0 ? 1 : $currentLevel;
 
                                 // Check if the user is authorized to approve at the current level for this specific user's leave
@@ -1004,7 +1004,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                 }
 
                                 $currentUserRoleId = $userRole->id;
-                                $currentLevel = (int)($leave->leaveLogs()->max('level') ?? 0);
+                                $currentLevel = (int) ($leave->leaveLogs()->max('level') ?? 0);
                                 $currentLevel = $currentLevel === 0 ? 1 : $currentLevel;
 
                                 // Check if the current user is authorized to approve at the current level for this specific user's leave
@@ -1066,7 +1066,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
         }
         $currentUserRoleId = $userRole->id;
 
-        $levelForAction = (int)($leave->leaveLogs()->max('level') ?? 0);
+        $levelForAction = (int) ($leave->leaveLogs()->max('level') ?? 0);
 
         // Check if the current user's role is in the approval hierarchy for this leave's user at the correct level.
         $isAuthorized = DB::table('approval_steps')
@@ -1097,8 +1097,8 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                     ->getStateUsing(function ($record) {
                         if ($record->type === 'regular') {
                             $start = Carbon::parse($record->starting_date);
-                            $end   = Carbon::parse($record->ending_date);
-                            $days  = $start->diffInDays($end) + 1;
+                            $end = Carbon::parse($record->ending_date);
+                            $days = $start->diffInDays($end) + 1;
                             return "{$days} Full Day" . ($days > 1 ? 's' : '');
                         }
                         if ($record->type === 'half_day') {
@@ -1106,8 +1106,8 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                         }
                         if ($record->type === 'short_leave') {
                             $startTime = Carbon::parse($record->starting_time);
-                            $endTime   = Carbon::parse($record->ending_time);
-                            $minutes   = round($startTime->diffInMinutes($endTime));
+                            $endTime = Carbon::parse($record->ending_time);
+                            $minutes = round($startTime->diffInMinutes($endTime));
                             return "{$minutes} minutes";
                         }
                         return 'N/A';
@@ -1184,7 +1184,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                     ->placeholder('Leave Type')
                     ->searchable()
                     ->options([
-                        'regular' => 'Regular Leave',
+                        'regular' => 'Full Day Leave',
                         'half_day' => 'Half Day',
                         'short_leave' => 'Short Leave',
                     ])->indicateUsing(
@@ -1229,7 +1229,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                     ->url(
                         fn(Leave $record): string =>
                         static::getUrl('edit', ['record' => $record]) .
-                            (request()->getQueryString() ? '?' . request()->getQueryString() : '')
+                        (request()->getQueryString() ? '?' . request()->getQueryString() : '')
                     )
                     ->visible(fn($record) => in_array($record->status, ['pending', 'forwarded', 'pending_cancellation'])),
                 Tables\Actions\Action::make('approve')
@@ -1238,7 +1238,8 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                     ->icon('heroicon-o-check-circle')
                     ->action(function (Leave $record) {
                         $pendingLog = $record->leaveLogs()->where('status', 'pending')->orderBy('level', 'asc')->first();
-                        if (!$pendingLog) return;
+                        if (!$pendingLog)
+                            return;
 
                         $currentUser = Auth::user();
                         $currentRole = $currentUser->roles->first();
@@ -1257,7 +1258,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                         // Update the pending log
                         $pendingLog->update([
                             'role_id' => $currentRole->id,
-                            'status'  => $actionStatus,
+                            'status' => $actionStatus,
                         ]);
 
                         // Check for next level
@@ -1272,9 +1273,9 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                             $record->update(['status' => 'forwarded']);
                             LeaveLog::create([
                                 'leave_id' => $record->id,
-                                'role_id'  => $nextStep->role_id,
-                                'level'    => $nextLevel,
-                                'status'   => 'pending',
+                                'role_id' => $nextStep->role_id,
+                                'level' => $nextLevel,
+                                'status' => 'pending',
                             ]);
                         } else {
                             $record->update(['status' => 'approved']);
@@ -1314,10 +1315,10 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                         // Store the cancellation log with the reason
                         $record->leaveLogs()->create([
                             'leave_id' => $record->id,
-                            'role_id'  => $roleId,
-                            'status'   => 'Pending Cancellation',
-                            'level'    => ($record->leaveLogs()->max('level') ?? 0) + 1,
-                            'remarks'  => $cancellationReason,  // Store cancellation reason in remarks
+                            'role_id' => $roleId,
+                            'status' => 'Pending Cancellation',
+                            'level' => ($record->leaveLogs()->max('level') ?? 0) + 1,
+                            'remarks' => $cancellationReason,  // Store cancellation reason in remarks
                         ]);
                     })
                     ->requiresConfirmation(function (Tables\Actions\Action $action, $record) {
