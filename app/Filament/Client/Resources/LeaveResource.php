@@ -6,7 +6,9 @@ use App\Facades\Helper;
 use App\Filament\Client\Resources\LeaveResource\Pages;
 use App\Models\Leave;
 use App\Models\LeaveLog;
+use App\Models\Role;
 use Carbon\Carbon;
+use Coolsam\Flatpickr\Forms\Components\Flatpickr;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -397,7 +399,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                     // Regular Leave Fields
                                     Forms\Components\Grid::make()
                                         ->schema([
-                                            Forms\Components\DatePicker::make('starting_date')
+                                            Flatpickr::make('starting_date')
                                                 ->required()
                                                 ->reactive()
                                                 ->label('Starting Date')
@@ -412,7 +414,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                     return null;
                                                 }),
 
-                                            Forms\Components\DatePicker::make('ending_date')
+                                            Flatpickr::make('ending_date')
                                                 ->required()
                                                 ->label('Ending Date')
                                                 ->afterOrEqual('starting_date')
@@ -538,7 +540,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                     // Half Day Fields
                                     Forms\Components\Grid::make()
                                         ->schema([
-                                            Forms\Components\DatePicker::make('starting_date')
+                                            Flatpickr::make('starting_date')
                                                 ->required()
                                                 ->label('Date')
                                                 ->native(false)
@@ -567,7 +569,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                     // Short Leave Fields
                                     Forms\Components\Grid::make()
                                         ->schema([
-                                            Forms\Components\DatePicker::make('starting_date')
+                                            Flatpickr::make('starting_date')
                                                 ->required()
                                                 ->label('Date')
                                                 ->native(false)
@@ -585,10 +587,12 @@ class LeaveResource extends Resource implements HasKnowledgeBase
 
                                             Forms\Components\Grid::make(2)
                                                 ->schema([
-                                                    Forms\Components\TimePicker::make('starting_time')
+                                                    Flatpickr::make('starting_time')
+                                                        ->timePicker()
+                                                        ->time24hr(false)
                                                         ->required()
-                                                        ->label('Starting Time')
                                                         ->native(false)
+                                                        ->label('Starting Time')
                                                         ->prefixIcon('heroicon-m-clock')
                                                         ->withoutSeconds()
                                                         ->afterStateUpdated(function ($state, callable $set, callable $get) {
@@ -601,9 +605,11 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                             }
                                                         }),
 
-                                                    Forms\Components\TimePicker::make('ending_time')
-                                                        ->required()
+                                                    Flatpickr::make('ending_time')
                                                         ->label('Ending Time')
+                                                        ->timePicker()
+                                                        ->time24hr(false)
+                                                        ->required()
                                                         ->native(false)
                                                         ->prefixIcon('heroicon-m-clock')
                                                         ->withoutSeconds()
@@ -1085,14 +1091,27 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Name')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('type')
-                    ->label('Period')
-                    ->badge()
-                    ->formatStateUsing(
-                        fn(string $state): string =>
-                        Str::of($state)->replace('_', ' ')->title()
-                    )
-                    ->color('info'),
+                Tables\Columns\TextColumn::make('duration')
+                    ->label('Duration')
+                    ->getStateUsing(function ($record) {
+                        if ($record->type === 'regular') {
+                            $start = Carbon::parse($record->starting_date);
+                            $end   = Carbon::parse($record->ending_date);
+                            $days  = $start->diffInDays($end) + 1;
+                            return "{$days} Full Day" . ($days > 1 ? 's' : '');
+                        }
+                        if ($record->type === 'half_day') {
+                            return 'Half Day';
+                        }
+                        if ($record->type === 'short_leave') {
+                            $startTime = Carbon::parse($record->starting_time);
+                            $endTime   = Carbon::parse($record->ending_time);
+                            $minutes   = round($startTime->diffInMinutes($endTime));
+                            return "{$minutes} minutes";
+                        }
+                        return 'N/A';
+                    })->badge()
+                    ->color('gray'),
                 Tables\Columns\TextColumn::make('leave_type')
                     ->label('Type')
                     ->badge()
@@ -1105,7 +1124,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                     ->label('Starting Time')
                     ->getStateUsing(function ($record) {
                         $date = $record->starting_date
-                            ? \Carbon\Carbon::parse($record->starting_date)->format('Y-m-d')
+                            ? \Carbon\Carbon::parse($record->starting_date)->format('M d, Y')
                             : null;
 
                         $time = $record->starting_time
@@ -1123,67 +1142,21 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                         return '-'; // fallback when neither is present
                     }),
 
-                // Tables\Columns\TextColumn::make('end')
-                //     ->label('Ending Time')
-                //     ->getStateUsing(function ($record) {
-                //         $date = $record->ending_date
-                //             ? \Carbon\Carbon::parse($record->ending_date)->format('Y-m-d')
-                //             : null;
-
-                //         $time = $record->ending_time
-                //             ? \Carbon\Carbon::parse($record->ending_time)->format('H:i A')
-                //             : null;
-
-                //         if ($date && $time) {
-                //             return "$date $time";
-                //         }
-
-                //         if ($date) {
-                //             return $date;
-                //         }
-
-                //         return '-';
-                //     })
-                //     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('duration')
-                    ->label('Duration')
-                    ->getStateUsing(function ($record) {
-                        if ($record->type === 'regular') {
-                            $start = Carbon::parse($record->starting_date);
-                            $end   = Carbon::parse($record->ending_date);
-                            $days  = $start->diffInDays($end) + 1;
-                            return "{$days} Full Day" . ($days > 1 ? 's' : '');
-                        }
-                        if ($record->type === 'half_day') {
-                            return $record->half_day_timing . ' Half Day';
-                        }
-                        if ($record->type === 'short_leave') {
-                            $startTime = Carbon::parse($record->starting_time);
-                            $endTime   = Carbon::parse($record->ending_time);
-                            $minutes   = round($startTime->diffInMinutes($endTime));
-                            return "{$minutes} minutes";
-                        }
-                        return 'N/A';
-                    })->badge()
-                    ->color('gray'),
                 Tables\Columns\TextColumn::make('leave_reason')
-                    ->limit(40),
+                    ->limit(40)
+                    ->tooltip(fn($record) => $record->leave_reason),
+
+                Tables\Columns\TextColumn::make('created_at')
+                    ->date()
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('status')
                     ->description(
                         fn(Leave $record): string =>
                         Str::words($record->rejection_reason ?? '', 5, '...')
                     )
                     ->formatStateUsing(function ($state, $record) {
-                        $latestLog = $record->leaveLogs()->latest('created_at')->first();
-
-                        if ($latestLog) {
-                            $roleName = $latestLog->role->name ?? 'Unknown Role';
-                            $status = ucfirst($latestLog->status ?? 'No status');
-
-                            return "{$roleName}: {$status}";
-                        }
-
-                        return 'No history';
+                        return self::leaveStatus($state, $record);
                     })
                     ->badge()
                     ->color(
@@ -1195,41 +1168,53 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                             default => 'warning',
                         }
                     ),
-
-                Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable(),
             ])
             ->filters([
-                DateRangeFilter::make('created_at')
-                    ->icon('heroicon-o-arrow-path')
-                    ->startDate(Carbon::now()->startOfMonth())
-                    ->endDate(Carbon::now())
-                    ->maxDate(Carbon::now()),
+                Tables\Filters\SelectFilter::make('user_id')
+                    ->placeholder('Employee')
+                    ->searchable()
+                    ->options(fn() => Filament::getTenant()->filteredUsers()->where('active', 1)->where('attendance_config', 1)->pluck('name', 'id'))->indicateUsing(
+                        fn() => null
+                    ),
+
+
                 Tables\Filters\SelectFilter::make('type')
-                    ->placeholder('Filter by Type')
+                    ->placeholder('Leave Type')
                     ->searchable()
                     ->options([
                         'regular' => 'Regular Leave',
                         'half_day' => 'Half Day',
                         'short_leave' => 'Short Leave',
-                    ]),
+                    ])->indicateUsing(
+                        fn() => null
+                    ),
                 Tables\Filters\SelectFilter::make('paid')
-                    ->placeholder('Filter by Payment')
+                    ->placeholder('Payment')
                     ->searchable()
                     ->options([
                         1 => 'Paid',
                         0 => 'Unpaid',
-                    ]),
+                    ])->indicateUsing(
+                        fn() => null
+                    ),
                 Tables\Filters\SelectFilter::make('status')
-                    ->placeholder('Filter by Status')
+                    ->placeholder('Status')
                     ->searchable()
                     ->options([
                         'pending' => 'Pending',
                         'approved' => 'Approved',
                         'rejected' => 'Rejected',
                         'pending_cancellation' => 'Pending Cancellation',
-                    ]),
+                    ])->indicateUsing(
+                        fn() => null
+                    ),
+                DateRangeFilter::make('created_at')
+                    ->icon('heroicon-o-arrow-path')
+                    ->startDate(Carbon::now()->startOfMonth())
+                    ->endDate(Carbon::now())
+                    ->maxDate(Carbon::now())->indicateUsing(
+                        fn() => null
+                    ),
 
             ], layout: FiltersLayout::AboveContent)
             ->defaultSort('created_at', 'desc')
@@ -1237,7 +1222,8 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                 Tables\Actions\ViewAction::make()
                     ->url(fn(Leave $record): string => static::getUrl('edit', ['record' => $record]))
                     ->visible(fn($record) => in_array($record->status, ['cancelled', 'approved', 'rejected'])),
-                Tables\Actions\EditAction::make()
+                Tables\Actions\Action::make('manage')
+                    ->icon('heroicon-s-pencil-square')
                     ->url(
                         fn(Leave $record): string =>
                         static::getUrl('edit', ['record' => $record]) .
@@ -1361,7 +1347,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                             ->maxLength(255),
                     ])
             ])
-            ->bulkActions([]);
+            ->actionsColumnLabel('Actions');
     }
 
     public static function getRelations(): array
@@ -1378,5 +1364,26 @@ class LeaveResource extends Resource implements HasKnowledgeBase
             'create' => Pages\CreateLeave::route('/create'),
             'edit' => Pages\EditLeave::route('/{record}/edit'),
         ];
+    }
+    private static function leaveStatus($state, $record): string
+    {
+        if ($record->status == 'approved') {
+            return 'Approved';
+        }
+        $team_id = Filament::getTenant()->id;
+        $latestLog = $record->leaveLogs()->latest('created_at')->first();
+        // Fetch hierarchy steps
+        $hierarchySteps = DB::table('approval_steps')
+            ->where('team_id', $team_id)
+            ->where('user_id', $record->user_id)
+            ->where('level', $latestLog->level)
+            ->orderBy('level', 'asc')
+            ->first();
+        $role = Role::find($hierarchySteps->role_id);
+        if ($latestLog) {
+            $roleName = $role->name ?? 'Unknown Role';
+            return "{$roleName}: Pending";
+        }
+        return 'N/A';
     }
 }

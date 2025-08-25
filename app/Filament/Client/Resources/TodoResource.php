@@ -109,7 +109,8 @@ class TodoResource extends Resource
                     Tables\Actions\EditAction::make()->color('info'),
                     Tables\Actions\DeleteAction::make(),
                 ])->iconButton()
-            ]);
+            ])
+            ->actionsColumnLabel('Actions');
     }
 
     public static function getEloquentQuery(): Builder

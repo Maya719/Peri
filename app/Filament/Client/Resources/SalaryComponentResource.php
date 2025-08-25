@@ -247,6 +247,7 @@ class SalaryComponentResource extends Resource implements HasKnowledgeBase
                             ->send();
                     }),
             ])
+            ->actionsColumnLabel('Actions')
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()

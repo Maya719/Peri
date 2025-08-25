@@ -100,6 +100,12 @@ class RegisterTeam extends RegisterTenant
 
     protected function teamInitailize(Team $team)
     {
+        $ceoRole = Role::create([
+            'name' => 'CEO',
+            'guard_name' => 'web',
+            'team_id' => $team->id,
+            'is_default' => true,
+        ]);
         $amsRole = Role::create([
             'name' => 'AMS Manager',
             'guard_name' => 'web',
@@ -125,6 +131,8 @@ class RegisterTeam extends RegisterTenant
             'payroll.approve',
             'payroll.manage'
         ]);
+        $permissions = Permission::all();
+        $ceoRole->syncPermissions($permissions);
     }
     protected function subscribeFreeTrail(Team $tenant)
     {

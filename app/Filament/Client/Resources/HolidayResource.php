@@ -202,6 +202,7 @@ class HolidayResource extends Resource implements HasKnowledgeBase
                 Tables\Actions\DeleteAction::make()
                     ->visible(fn() => Auth::user()->can('holiday.manage') || Auth::user()->hasRole('Admin')),
             ])
+            ->actionsColumnLabel('Actions')
             ->defaultSort('created_at', 'desc')
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()

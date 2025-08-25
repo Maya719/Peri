@@ -24,6 +24,12 @@ class Shift extends Model
     {
         return $this->belongsTo(Team::class);
     }
+
+    public function logs()
+    {
+        return $this->hasMany(ShiftLog::class);
+    }
+
     protected static function booted()
     {
         static::updated(function ($shift) {

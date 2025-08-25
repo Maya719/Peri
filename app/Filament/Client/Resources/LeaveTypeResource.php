@@ -117,6 +117,7 @@ class LeaveTypeResource extends Resource implements HasKnowledgeBase
                 DeleteAction::make()
                     ->visible(fn() => Auth::user()->hasRole('Admin') || Auth::user()->can('leaveType.manage')),
             ])
+            ->actionsColumnLabel('Actions')
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()

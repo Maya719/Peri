@@ -157,6 +157,7 @@ class OffCyclePayRunResource extends Resource
                     ->requiresConfirmation()
                     ->modalDescription('Select a date to record the payment.'),
             ])
+            ->actionsColumnLabel('Actions')
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),

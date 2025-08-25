@@ -202,6 +202,7 @@ class PayRunResource extends Resource
                     ->requiresConfirmation()
                     ->modalDescription('Select a date to record the payment.'),
             ])
+            ->actionsColumnLabel('Actions')
             ->recordUrl(null)
             ->defaultSort('year', 'desc')
             ->defaultSort('month', 'desc');

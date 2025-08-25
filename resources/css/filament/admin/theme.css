@@ -193,7 +193,7 @@ body {
 }
 
 .fi-ta-filter-indicators .whitespace-nowrap {
-    display: none !important;
+    display: none;
 }
 
 .it-table-repeater-cell-label {

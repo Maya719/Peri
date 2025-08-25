@@ -87,7 +87,8 @@ class DeviceResource extends Resource implements HasKnowledgeBase
                             $subscription->reduceFeatureUsage('biometric-devices');
                         }
                     }),
-            ]);
+            ])
+            ->actionsColumnLabel('Actions');
     }
 
     public static function getPages(): array

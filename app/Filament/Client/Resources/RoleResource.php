@@ -167,7 +167,8 @@ class RoleResource extends Resource implements HasKnowledgeBase
                             $subscription->reduceFeatureUsage('roles');
                         }
                     }),
-            ]);
+            ])
+            ->actionsColumnLabel('Actions');
     }
 
     public static function getPages(): array

@@ -222,6 +222,7 @@ class NoticeResource extends Resource implements HasKnowledgeBase
                     }),
                 Tables\Actions\ViewAction::make(),
             ])
+            ->actionsColumnLabel('Actions')
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make(),
             ]);

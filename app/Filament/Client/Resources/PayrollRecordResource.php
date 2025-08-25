@@ -217,7 +217,9 @@ class PayrollRecordResource extends Resource
                             Auth::user()->can('payroll.approve')
                         )
                     ),
-            ]);
+            ])
+            ->actionsColumnLabel('Actions')
+        ;
     }
 
     protected static function getCurrencySymbol(): string

@@ -126,6 +126,8 @@ class ShiftResource extends Resource implements HasKnowledgeBase
                         }
                     }),
             ])
+            ->actionsColumnLabel('Actions')
+
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()
                     ->visible(fn() => Auth::user()->can('shifts.manage') || Auth::user()->hasRole('Admin')),

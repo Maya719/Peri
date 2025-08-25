@@ -172,33 +172,19 @@ class ClientPanelProvider extends PanelProvider
                 return View::make('filament.client.pages.notices')->render();
             })
             ->renderHook('panels::global-search.before', function () {
-                $user = Auth::user();
-                $role = $user?->getRoleNames()->first() ?? 'User';
-
-                $subscriptionData = app('helper')->getActiveSubscriptionDetails();
-
-                $endsAt = $subscriptionData->endsAt;
-                $daysLeft = $endsAt ? ceil(now()->diffInSeconds($endsAt, false) / 86400) : null;
-
-                $subscriptionEndView = View::make('filament.components.subscription-end', [
-                    'role' => $role,
-                    'isEndingSoon' => $subscriptionData->isEndingSoon,
-                    'endsAt' => $endsAt,
-                    'daysLeft' => $daysLeft,
-                ])->render();
-
-                $roleBadgeView = View::make('filament.components.role-badge', compact('role'))->render();
-
-                return $subscriptionEndView . $roleBadgeView;
-            })
-            ->renderHook('panels::global-search.after', function () {
                 $team = Filament::getTenant();
                 $subscription = $team->activePlanSubscriptions()->first();
                 $plan = $subscription->plan;
-                if ($plan->isFree() && $subscription->trial_ends_at->isBetween(now(), now()->addDays(7))) {
+                if (($subscription->ends_at->isBetween(now(), now()->addDays(7))) || ($plan->isFree() && $subscription->trial_ends_at->isBetween(now(), now()->addDays(7)))) {
                     return Blade::render('@livewire(\'subscription-card\')');
                 }
                 return '';
+            })
+            ->renderHook('panels::global-search.before', function () {
+                $user = Auth::user();
+                $role = $user?->getRoleNames()->first() ?? 'User';
+                $roleBadgeView = View::make('filament.components.role-badge', compact('role'))->render();
+                return $roleBadgeView;
             });
     }
 }

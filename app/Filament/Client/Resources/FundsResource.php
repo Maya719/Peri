@@ -209,7 +209,8 @@ class FundsResource extends Resource
                             $subscription->reduceFeatureUsage('funds');
                         }
                     }),
-            ]);
+            ])
+            ->actionsColumnLabel('Actions');
     }
 
     public static function getPages(): array

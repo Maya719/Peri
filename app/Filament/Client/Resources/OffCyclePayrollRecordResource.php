@@ -175,7 +175,8 @@ class OffCyclePayrollRecordResource extends Resource
                         return redirect(PayRunResource::getUrl('index'));
                     }),
 
-            ]);
+            ])
+            ->actionsColumnLabel('Actions');
     }
 
     public static function getCurrencySymbol(): string

@@ -5,6 +5,7 @@ namespace App\Filament\Client\Resources;
 use App\Facades\Helper;
 use App\Models\User;
 use App\Filament\Client\Resources\EmployeeResource\Pages;
+use Coolsam\Flatpickr\Forms\Components\Flatpickr;
 use Filament\Resources\Resource;
 use Filament\Forms\Form;
 use Filament\Tables;
@@ -92,7 +93,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                     'male'   => 'Male',
                                                     'female' => 'Female',
                                                 ]),
-                                            Forms\Components\DatePicker::make('date_of_birth')
+                                            Flatpickr::make('date_of_birth')
                                                 ->label('Date Of Birth')
                                                 ->native(false)
                                                 ->prefixIcon('heroicon-m-calendar')
@@ -103,12 +104,12 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('NIC Number'),
                                             Forms\Components\TextInput::make('phone_number')
                                                 ->label('Phone Number'),
-                                            Forms\Components\DatePicker::make('joining_date')
+                                            Flatpickr::make('joining_date')
                                                 ->label('Joining Date')
                                                 ->native(false)
                                                 ->prefixIcon('heroicon-m-calendar')
                                                 ->required(),
-                                            Forms\Components\DatePicker::make('probation')
+                                            Flatpickr::make('probation')
                                                 ->label('Probation End Date')
                                                 ->native(false)
                                                 ->prefixIcon('heroicon-m-calendar')
@@ -162,7 +163,13 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                         ])
                                         ->columnSpanFull()
                                         ->visible(fn(callable $get) => $get('attendance_config'))
-                                        ->reactive(),
+                                        ->reactive()
+                                        ->afterStateUpdated(function (callable $set, $state) {
+                                            if ($state === 'offsite') {
+                                                $set('shift_id', null);
+                                                $set('devices', null);
+                                            }
+                                        }),
 
                                     Forms\Components\Grid::make(2)
                                         ->schema([
@@ -171,8 +178,9 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->options(fn() => Filament::getTenant()->shifts()->pluck('name', 'id'))
                                                 ->searchable()
                                                 ->preload()
-                                                ->required(fn(callable $get) => $get('attendance_config') && $get('attendance_type') === 'onsite')
-                                                ->visible(fn(callable $get) => $get('attendance_config') && $get('attendance_type') === 'onsite'),
+                                                ->required(fn(callable $get) => $get('attendance_config') && in_array($get('attendance_type'), ['onsite', 'hybrid']))
+                                                ->visible(fn(callable $get) => $get('attendance_config') && in_array($get('attendance_type'), ['onsite', 'hybrid']))
+                                                ->dehydrated(),
 
                                             // Device Selection - visible for Onsite
                                             Forms\Components\Select::make('devices')
@@ -181,7 +189,8 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->options(fn() => Filament::getTenant()->devices()->pluck('device_name', 'id'))
                                                 ->searchable()
                                                 ->preload()
-                                                ->visible(fn(callable $get) => $get('attendance_config') && $get('attendance_type') === 'onsite'),
+                                                ->visible(fn(callable $get) => $get('attendance_config') && $get('attendance_type') === 'onsite')
+                                                ->dehydrated(),
 
                                             // Hours Input - visible for Offsite and Hybrid
                                             Forms\Components\TextInput::make('hours_required')
@@ -475,7 +484,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('Resign / Terminate')
                                                 ->helperText('Mark this if the employee has resigned or been terminated')
                                                 ->reactive(),
-                                            Forms\Components\DatePicker::make('resign_date')
+                                            Flatpickr::make('resign_date')
                                                 ->label('Resignation / Termination Date')
                                                 ->required()
                                                 ->native(false)
@@ -564,7 +573,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                         1 => 'Active',
                         0 => 'Inactive',
                     ])
-                    ->default(1),
+                    ->default(1)->indicateUsing(fn() => null),
 
                 SelectFilter::make('attendance_type')
                     ->label('Attendance Type')
@@ -572,7 +581,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                         'onsite' => 'On Site',
                         'offsite' => 'Remote',
                         'hybrid' => 'Hybrid',
-                    ]),
+                    ])->indicateUsing(fn() => null),
 
                 SelectFilter::make('department_id')
                     ->label('Department')
@@ -584,18 +593,19 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                         }
 
                         return $query->whereHas('assignedDepartment', fn(Builder $q) => $q->where('department_id', $data['value']));
-                    }),
+                    })->indicateUsing(fn() => null),
 
                 SelectFilter::make('role')
                     ->label('Role')
                     ->placeholder('All Roles')
-                    ->options(fn() => Filament::getTenant()->roles()->pluck('name', 'id')->toArray()),
+                    ->options(fn() => Filament::getTenant()->roles()->pluck('name', 'id')->toArray())->indicateUsing(fn() => null),
             ])
             ->defaultSort('id', 'asc')
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])
+            ->actionsColumnLabel('Actions')
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()
                     ->visible(fn() => Auth::user()->can('employees.manage') || Auth::user()->hasRole('Admin')),
@@ -616,21 +626,21 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
     public static function canViewAny(): bool
     {
         return Auth::check() &&
-        (
-            Auth::user()->hasRole('Admin', 'web') 
-            || Auth::user()->can('employees.view')  
-            || Auth::user()->can('employees.manage') 
-            || Auth::user()->hasRole('CEO') 
-            || Auth::user()->hasRole('AMS Manager')
-        ) && Helper::has_feature('employees');
+            (
+                Auth::user()->hasRole('Admin', 'web')
+                || Auth::user()->can('employees.view')
+                || Auth::user()->can('employees.manage')
+                || Auth::user()->hasRole('CEO')
+                || Auth::user()->hasRole('AMS Manager')
+            ) && Helper::has_feature('employees');
     }
 
     public static function canCreate(): bool
     {
         return Auth::check() && (
-            Auth::user()->hasRole('Admin', 'web') || 
-            Auth::user()->can('employees.manage') || 
-            Auth::user()->hasRole('CEO') || 
+            Auth::user()->hasRole('Admin', 'web') ||
+            Auth::user()->can('employees.manage') ||
+            Auth::user()->hasRole('CEO') ||
             Auth::user()->hasRole('AMS Manager')
         ) && Helper::is_module_allowed('employees');
     }

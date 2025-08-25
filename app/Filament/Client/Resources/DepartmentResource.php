@@ -73,7 +73,8 @@ class DepartmentResource extends Resource implements HasKnowledgeBase
                         }
                     }),
                 Tables\Actions\EditAction::make(),
-            ]);
+            ])
+            ->actionsColumnLabel('Actions');
     }
 
     public static function getPages(): array

@@ -8,6 +8,7 @@ use App\Filament\Client\Resources\BiometricResource\RelationManagers;
 use App\Models\Biometric;
 use App\Models\User;
 use Carbon\Carbon;
+use Coolsam\Flatpickr\Forms\Components\Flatpickr;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Components\DateTimePicker;
@@ -88,9 +89,12 @@ class BiometricResource extends Resource implements HasKnowledgeBase
                                     fn($record) => ($record && ($record->status === 'approved' || $record->status === 'rejected'))
                                 ),
 
-                            DateTimePicker::make('timedate')
+                            Flatpickr::make('timedate')
                                 ->label('Date & Time')
-                                ->native(false)
+                                ->time(true)
+                                ->maxDate(fn() => today())
+                                ->seconds(false)
+                                ->time24hr(false)
                                 ->prefixIcon('heroicon-m-calendar')
                                 ->columns(1)
                                 ->required()
@@ -180,7 +184,7 @@ class BiometricResource extends Resource implements HasKnowledgeBase
                     ->visible(fn($record) => (Auth::user()->hasPermissionTo('biometric.createRequest') || Auth::user()->hasRole('Admin')) && $record->user_id === Auth::id())
                     ->disabled(fn($record) => $record && $record->status === 'approved'),
             ])
-
+            ->actionsColumnLabel('Actions')
             ->filters([]);
     }
 

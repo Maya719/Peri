@@ -95,6 +95,10 @@ class EditEmployee extends EditRecord
                     'shift_id' => $this->data["shift_id"],
                 ]
             );
+        } else {
+            ShiftUser::where('team_id', $tenant->id)
+                ->where('user_id', $this->record->id)
+                ->delete();
         }
 
         if ($this->data["department_id"]) {

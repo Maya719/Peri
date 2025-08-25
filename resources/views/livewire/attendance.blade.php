@@ -1,5 +1,7 @@
 @php
     use App\Filament\Client\Pages\UserAttendanceReport;
+    use Carbon\Carbon;
+    use Carbon\CarbonPeriod;
 @endphp
 <div>
     <div class="mb-6">
@@ -32,41 +34,15 @@
         </div>
 
         @php
-            use Carbon\Carbon;
-            use Carbon\CarbonPeriod;
-
             $datesGroupedByMonth = [];
-
             if (count($userAttendanceData)) {
-                // Extract all date keys from all users
-                $allDateKeys = collect($userAttendanceData)
-                    ->flatMap(function ($data) {
-                        return array_keys($data);
-                    })
-                    ->filter(function ($key) {
-                        return Carbon::canBeCreatedFromFormat($key, 'Y-m-d');
-                    })
-                    ->unique();
+                $firstUser = collect($userAttendanceData)->first();
+                $dateKeys = array_filter(array_keys($firstUser), fn($key) => Carbon::canBeCreatedFromFormat($key, 'Y-m-d'));
+                $period = CarbonPeriod::create(min($dateKeys), max($dateKeys));
 
-                // Get unique month starts
-                $uniqueMonths = $allDateKeys
-                    ->map(function ($date) {
-                        return Carbon::parse($date)->startOfMonth();
-                    })
-                    ->unique()
-                    ->sort();
-
-                // For each month, generate full list of dates
-                foreach ($uniqueMonths as $monthStart) {
-                    $start = $monthStart->copy();
-                    $end = $monthStart->copy()->endOfMonth();
-                    $period = CarbonPeriod::create($start, $end);
-
-                    $monthLabel = $start->format('F-Y');
-                    foreach ($period as $date) {
-                        $formatted = $date->format('Y-m-d');
-                        $datesGroupedByMonth[$monthLabel][] = $formatted;
-                    }
+                foreach ($period as $date) {
+                    $monthLabel = $date->format('F-Y');
+                    $datesGroupedByMonth[$monthLabel][] = $date->format('Y-m-d');
                 }
             }
         @endphp
@@ -100,21 +76,21 @@
                             </tr>
                             <tr>
                                 <th
-                                    class="w-18 py-3 text-center  dark:text-gray-400 border border-gray-300 bg-primary-600 dark:bg-gray-600">
+                                    class="w-18 py-3 text-center dark:text-gray-400 border border-gray-300 bg-primary-600 dark:bg-gray-600">
                                     ID
                                 </th>
                                 <th
-                                    class="py-3 text-center border  dark:text-gray-400 border-gray-300 bg-primary-600 dark:bg-gray-600">
+                                    class="py-3 text-center border dark:text-gray-400 border-gray-300 bg-primary-600 dark:bg-gray-600">
                                     Type
                                 </th>
                                 <th
-                                    class="py-3 text-center border  dark:text-gray-400 border-gray-300 bg-primary-600 dark:bg-gray-600">
+                                    class="py-3 text-center border dark:text-gray-400 border-gray-300 bg-primary-600 dark:bg-gray-600">
                                     Name
                                 </th>
 
                                 @if ($policy->late_policy_enabled == 1 && $policy->overtime_policy_enabled == 0)
                                     <th
-                                        class="text-center border  dark:text-gray-400 border-gray-300 bg-primary-600 dark:bg-gray-600">
+                                        class="text-center border dark:text-gray-400 border-gray-300 bg-primary-600 dark:bg-gray-600">
                                         A / L /
                                         LM</th>
                                 @elseif ($policy->late_policy_enabled == 1 && $policy->overtime_policy_enabled == 1)
@@ -145,15 +121,6 @@
                         </thead>
                         <tbody>
                             @foreach ($userAttendanceData as $data)
-                                @php
-                                    foreach ($datesGroupedByMonth as $month => $dates) {
-                                        foreach ($dates as $date) {
-                                            if (!array_key_exists($date, $data)) {
-                                                $data[$date] = '';
-                                            }
-                                        }
-                                    }
-                                @endphp
                                 <tr onclick="window.location='{{ UserAttendanceReport::getUrl(['record' => $data['user_id']]) }}'"
                                     class="cursor-pointer border-b text-gray-700 dark:border-gray-700">
                                     <td
@@ -172,26 +139,30 @@
                                         class="text-center border border-gray-300 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-white font-medium">
                                         {!! $data['total_late_minutes'] !!}
                                     </td>
-                                    @php $monthIndex = 0; @endphp
                                     @foreach ($datesGroupedByMonth as $month => $dates)
-                                        @foreach ($dates as $index => $date)
+                                        @foreach ($dates as $date)
                                             @php
-                                                $isLastDayOfMonth = $index === count($dates) - 1;
-                                                $borderClasses = 'border border-gray-300 ';
-                                                $bgClass = 'bg-white dark:bg-gray-800 ';
-
-                                                if ($isLastDayOfMonth) {
-                                                    $borderClasses .= 'border-4 border-orange-400 ';
-                                                    $bgClass = 'bg-gray-200 dark:bg-gray-400 ';
-                                                } else {
-                                                    $borderClasses .= 'border border-gray-300 ';
+                                                $cell = $data[$date] ?? null;
+                                                $cellClasses = 'border border-gray-300 text-center ';
+                                                if (\Carbon\Carbon::parse($date)->isLastOfMonth()) {
+                                                    $cellClasses .= 'border-r-4 border-orange-400 ';
                                                 }
                                             @endphp
-                                            <td class="text-center {{ $borderClasses }} {{ $bgClass }}">
-                                                {!! $data[$date] ?? '' !!}
+                                            <td class="{{ $cellClasses }}">
+                                                @if (is_array($cell))
+                                                    <div class="flex flex-col items-center justify-center h-full">
+                                                        @if ($cell['status'])
+                                                            <span class="text-xs font-medium text-{{ $cell['color'] }}-500">{{ $cell['status'] }}</span>
+                                                        @endif
+                                                        @if ($cell['punches'])
+                                                            <span class="text-xs text-gray-500">{{ $cell['punches'] }}</span>
+                                                        @endif
+                                                    </div>
+                                                @else
+                                                    {!! $cell !!}
+                                                @endif
                                             </td>
                                         @endforeach
-                                        @php $monthIndex++; @endphp
                                     @endforeach
                                 </tr>
                             @endforeach
@@ -206,25 +177,8 @@
         @else
             {{-- No Data Case --}}
             <div class="mt-6">
-                <x-slot name="heading">No Data Available</x-slot>
-                <div class="relative overflow-x-auto mt-4 mb-4">
-                    <table
-                        class="w-full text-sm text-left rtl:text-right text-gray-700 dark:text-gray-400 border border-gray-300">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr>
-                                <th scope="col" class="py-3 text-center border border-gray-300">Name</th>
-                                <th scope="col" class="text-center border border-gray-300">A / L / LM</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                                <td scope="row" colspan="2"
-                                    class="custom-width font-medium text-gray-900 px-2 dark:text-white border border-gray-300 text-center">
-                                    No data available
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="flex justify-center items-center p-4">
+                    <p class="text-gray-500">No attendance data available for the selected filters.</p>
                 </div>
             </div>
         @endif
