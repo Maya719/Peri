@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Support\Htmlable;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\DatePicker;
 use JaOcero\RadioDeck\Forms\Components\RadioDeck;
 use Guava\FilamentKnowledgeBase\Contracts\HasKnowledgeBase;
 use Guava\FilamentKnowledgeBase\Facades\KnowledgeBase;
@@ -93,10 +94,9 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                     'male'   => 'Male',
                                                     'female' => 'Female',
                                                 ]),
-                                            Flatpickr::make('date_of_birth')
+                                            DatePicker::make('date_of_birth')
                                                 ->label('Date Of Birth')
-                                                ->native(false)
-                                                ->prefixIcon('heroicon-m-calendar')
+                                                ->native(false)->closeOnDateSelection()
                                                 ->required(),
                                             Forms\Components\TextInput::make('blood_group')
                                                 ->label('Blood Group'),
@@ -104,15 +104,13 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('NIC Number'),
                                             Forms\Components\TextInput::make('phone_number')
                                                 ->label('Phone Number'),
-                                            Flatpickr::make('joining_date')
+                                            DatePicker::make('joining_date')
                                                 ->label('Joining Date')
-                                                ->native(false)
-                                                ->prefixIcon('heroicon-m-calendar')
+                                                ->native(false)->closeOnDateSelection()
                                                 ->required(),
-                                            Flatpickr::make('probation')
+                                            DatePicker::make('probation')
                                                 ->label('Probation End Date')
-                                                ->native(false)
-                                                ->prefixIcon('heroicon-m-calendar')
+                                                ->native(false)->closeOnDateSelection()
                                                 ->hint('Leave blank if not applicable')
                                                 ->reactive(),
                                             Forms\Components\TextInput::make('emergency_person')
@@ -474,7 +472,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                             // Tab 7: Resignation / Termination
                             Forms\Components\Tabs\Tab::make('Resignation / Termination')
                                 ->icon('heroicon-m-exclamation-triangle')
-                                ->visible(fn() => !Auth::user()->hasRole('Payroll Manager'))
+                                ->visible(fn() => !Auth::user()->hasRole('Payroll Manager') && request()->routeIs('filament.client.resources.employees.edit'))
                                 ->schema([
                                     Forms\Components\Grid::make(2)
                                         ->schema([
@@ -484,11 +482,10 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('Resign / Terminate')
                                                 ->helperText('Mark this if the employee has resigned or been terminated')
                                                 ->reactive(),
-                                            Flatpickr::make('resign_date')
+                                            DatePicker::make('resign_date')
                                                 ->label('Resignation / Termination Date')
                                                 ->required()
-                                                ->native(false)
-                                                ->prefixIcon('heroicon-m-calendar')
+                                                ->native(false)->closeOnDateSelection()
                                                 ->hidden(fn(callable $get) => ! $get('resigned')),
                                         ]),
                                     Forms\Components\Grid::make(1)

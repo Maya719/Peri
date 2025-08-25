@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Coolsam\Flatpickr\Forms\Components\Flatpickr;
 use Filament\Facades\Filament;
 use Filament\Forms;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -399,11 +400,11 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                     // Regular Leave Fields
                                     Forms\Components\Grid::make()
                                         ->schema([
-                                            Flatpickr::make('starting_date')
+                                            DatePicker::make('starting_date')
                                                 ->required()
                                                 ->reactive()
                                                 ->label('Starting Date')
-                                                ->native(false)
+                                                ->native(false)->closeOnDateSelection()
                                                 ->prefixIcon('heroicon-m-calendar')
                                                 ->minDate(function () {
                                                     $user = Auth::user();
@@ -414,11 +415,11 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                     return null;
                                                 }),
 
-                                            Flatpickr::make('ending_date')
+                                            DatePicker::make('ending_date')
                                                 ->required()
                                                 ->label('Ending Date')
                                                 ->afterOrEqual('starting_date')
-                                                ->native(false)
+                                                ->native(false)->closeOnDateSelection()
                                                 ->prefixIcon('heroicon-m-calendar')
                                                 ->minDate(function () {
                                                     $user = Auth::user();
@@ -540,10 +541,10 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                     // Half Day Fields
                                     Forms\Components\Grid::make()
                                         ->schema([
-                                            Flatpickr::make('starting_date')
+                                            DatePicker::make('starting_date')
                                                 ->required()
                                                 ->label('Date')
-                                                ->native(false)
+                                                ->native(false)->closeOnDateSelection()
                                                 ->prefixIcon('heroicon-m-calendar')
                                                 ->minDate(function () {
                                                     $user = Auth::user();
@@ -569,10 +570,10 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                     // Short Leave Fields
                                     Forms\Components\Grid::make()
                                         ->schema([
-                                            Flatpickr::make('starting_date')
+                                            DatePicker::make('starting_date')
                                                 ->required()
                                                 ->label('Date')
-                                                ->native(false)
+                                                ->native(false)->closeOnDateSelection()
                                                 ->prefixIcon('heroicon-m-calendar')
                                                 ->minDate(function () {
                                                     $user = Auth::user();
@@ -591,7 +592,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                         ->timePicker()
                                                         ->time24hr(false)
                                                         ->required()
-                                                        ->native(false)
+                                                        ->native(false)->closeOnDateSelection()
                                                         ->label('Starting Time')
                                                         ->prefixIcon('heroicon-m-clock')
                                                         ->withoutSeconds()
@@ -610,7 +611,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                         ->timePicker()
                                                         ->time24hr(false)
                                                         ->required()
-                                                        ->native(false)
+                                                        ->native(false)->closeOnDateSelection()
                                                         ->prefixIcon('heroicon-m-clock')
                                                         ->withoutSeconds()
                                                         ->afterStateUpdated(function ($state, callable $set, callable $get) {
@@ -905,13 +906,13 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                 // Determine the options based on permission
                                 if ($permission === 'recommend') {
                                     return [
-                                        'forwarded' => 'Forward Leave',
-                                        'rejected' => 'Reject Leave',
+                                        'forwarded' => 'Forward',
+                                        'rejected' => 'Reject',
                                     ];
                                 } elseif ($permission === 'approve') {
                                     return [
-                                        'approved' => 'Approve Leave',
-                                        'rejected' => 'Reject Leave',
+                                        'approved' => 'Approve',
+                                        'rejected' => 'Reject',
                                     ];
                                 }
 
@@ -944,7 +945,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                         ->pluck('role_id')
                                         ->toArray();
 
-                                    return !in_array($currentUserRoleId, $approvalSteps); // Disable if user role isn't in the hierarchy
+                                    return !in_array($currentUserRoleId, $approvalSteps);
                                 }
 
                                 // Standard approval flow: Check if the current user is authorized to approve at the current level
@@ -1147,6 +1148,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                     ->tooltip(fn($record) => $record->leave_reason),
 
                 Tables\Columns\TextColumn::make('created_at')
+                    ->label('Created On')
                     ->date()
                     ->sortable(),
 
@@ -1221,7 +1223,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
             ->actions([
                 Tables\Actions\ViewAction::make()
                     ->url(fn(Leave $record): string => static::getUrl('edit', ['record' => $record]))
-                    ->visible(fn($record) => in_array($record->status, ['cancelled', 'approved', 'rejected'])),
+                    ->visible(fn($record) => in_array($record->status, ['cancelled', 'approved', 'rejected', 'rejected_cancellation'])),
                 Tables\Actions\Action::make('manage')
                     ->icon('heroicon-s-pencil-square')
                     ->url(
@@ -1229,7 +1231,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                         static::getUrl('edit', ['record' => $record]) .
                             (request()->getQueryString() ? '?' . request()->getQueryString() : '')
                     )
-                    ->visible(fn($record) => in_array($record->status, ['pending', 'forwarded'])),
+                    ->visible(fn($record) => in_array($record->status, ['pending', 'forwarded', 'pending_cancellation'])),
                 Tables\Actions\Action::make('approve')
                     ->label('Approve')
                     ->color('success')
@@ -1370,19 +1372,29 @@ class LeaveResource extends Resource implements HasKnowledgeBase
         if ($record->status == 'approved') {
             return 'Approved';
         }
+
         $team_id = Filament::getTenant()->id;
         $latestLog = $record->leaveLogs()->latest('created_at')->first();
+        if ($latestLog->status == 'Pending Cancellation') {
+            return 'Pending Cancellation';
+        }
+        if ($latestLog->status == 'cancelled') {
+            return 'Cancelled';
+        }
+        if ($latestLog->status == 'rejected_cancellation') {
+            return 'Rejected Cancellation';
+        }
         // Fetch hierarchy steps
-        $hierarchySteps = DB::table('approval_steps')
+        $hierarchyStep = DB::table('approval_steps')
             ->where('team_id', $team_id)
             ->where('user_id', $record->user_id)
             ->where('level', $latestLog->level)
             ->orderBy('level', 'asc')
             ->first();
-        $role = Role::find($hierarchySteps->role_id);
+        $role = Role::find($hierarchyStep->role_id);
         if ($latestLog) {
             $roleName = $role->name ?? 'Unknown Role';
-            return "{$roleName}: Pending";
+            return "{$roleName}";
         }
         return 'N/A';
     }

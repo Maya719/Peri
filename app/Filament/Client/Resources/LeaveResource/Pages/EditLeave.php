@@ -86,7 +86,27 @@ class EditLeave extends EditRecord
 
         // Handle cancellation flow separately
         if ($this->record->status === 'pending_cancellation') {
-            // ... (cancellation logic remains the same)
+            if ($approvalStatus == 'rejected_cancellation') {
+                $this->record->update(['status' => 'rejected_cancellation']);
+                $pendingLog = $this->record->leaveLogs()->where('status', 'Pending Cancellation')->orderBy('level', 'asc')->first();
+                LeaveLog::create([
+                    'leave_id' => $this->record->id,
+                    'role_id'  => $roleId,
+                    'level'    => $pendingLog->level + 1,
+                    'status'   => 'rejected_cancellation',
+                ]);
+            } else {
+                $this->record->update(['status' => 'cancelled']);
+                $pendingLog = $this->record->leaveLogs()->where('status', 'Pending Cancellation')->orderBy('level', 'asc')->first();
+                // 3. Update the pending log with the approver's action.
+                LeaveLog::create([
+                    'leave_id' => $this->record->id,
+                    'role_id'  => $roleId,
+                    'level'    => $pendingLog->level + 1,
+                    'status'   => 'cancelled',
+                ]);
+            }
+            
             return;
         }
 
@@ -110,7 +130,7 @@ class EditLeave extends EditRecord
 
         // 3. Update the pending log with the approver's action.
         $pendingLog->update([
-            'role_id'  => $roleId, // The user who took the action
+            'role_id'  => $roleId,
             'status'   => $approvalStatus,
             'remarks'  => $remarks,
         ]);
