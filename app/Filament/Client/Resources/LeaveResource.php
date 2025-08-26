@@ -11,7 +11,6 @@ use Carbon\Carbon;
 use Coolsam\Flatpickr\Forms\Components\Flatpickr;
 use Filament\Facades\Filament;
 use Filament\Forms;
-use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -400,7 +399,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                     // Regular Leave Fields
                                     Forms\Components\Grid::make()
                                         ->schema([
-                                            DatePicker::make('starting_date')
+                                            Flatpickr::make('starting_date')
                                                 ->required()
                                                 ->reactive()
                                                 ->label('Starting Date')
@@ -415,7 +414,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                     return null;
                                                 }),
 
-                                            DatePicker::make('ending_date')
+                                            Flatpickr::make('ending_date')
                                                 ->required()
                                                 ->label('Ending Date')
                                                 ->afterOrEqual('starting_date')
@@ -541,7 +540,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                     // Half Day Fields
                                     Forms\Components\Grid::make()
                                         ->schema([
-                                            DatePicker::make('starting_date')
+                                            Flatpickr::make('starting_date')
                                                 ->required()
                                                 ->label('Date')
                                                 ->native(false)->closeOnDateSelection()
@@ -570,7 +569,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                     // Short Leave Fields
                                     Forms\Components\Grid::make()
                                         ->schema([
-                                            DatePicker::make('starting_date')
+                                            Flatpickr::make('starting_date')
                                                 ->required()
                                                 ->label('Date')
                                                 ->native(false)->closeOnDateSelection()
@@ -1116,13 +1115,15 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                 Tables\Columns\TextColumn::make('leave_type')
                     ->label('Type')
                     ->badge()
-                    ->color('warning'),
+                    ->color('warning')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('paid')
                     ->badge()
                     ->formatStateUsing(fn(bool $state): string => $state ? 'Paid' : 'Unpaid')
-                    ->color(fn(bool $state): string => $state ? 'success' : 'danger'),
-                Tables\Columns\TextColumn::make('start')
-                    ->label('Starting Time')
+                    ->color(fn(bool $state): string => $state ? 'success' : 'danger')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('starting_time')
+                    ->label('Date')
                     ->getStateUsing(function ($record) {
                         $date = $record->starting_date
                             ? \Carbon\Carbon::parse($record->starting_date)->format('M d, Y')
@@ -1140,8 +1141,9 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                             return $date;
                         }
 
-                        return '-'; // fallback when neither is present
-                    }),
+                        return '-';
+                    })
+                    ->sortable(),
 
                 Tables\Columns\TextColumn::make('leave_reason')
                     ->limit(40)
@@ -1161,6 +1163,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                         return self::leaveStatus($state, $record);
                     })
                     ->badge()
+                    ->sortable()
                     ->color(
                         fn(string $state): string =>
                         match ($state) {
