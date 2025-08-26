@@ -15,7 +15,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Support\Htmlable;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Facades\Filament;
-use Filament\Forms\Components\DatePicker;
 use JaOcero\RadioDeck\Forms\Components\RadioDeck;
 use Guava\FilamentKnowledgeBase\Contracts\HasKnowledgeBase;
 use Guava\FilamentKnowledgeBase\Facades\KnowledgeBase;
@@ -94,7 +93,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                     'male' => 'Male',
                                                     'female' => 'Female',
                                                 ]),
-                                            DatePicker::make('date_of_birth')
+                                            Flatpickr::make('date_of_birth')
                                                 ->label('Date Of Birth')
                                                 ->native(false)->closeOnDateSelection()
                                                 ->required(),
@@ -104,11 +103,11 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('NIC Number'),
                                             Forms\Components\TextInput::make('phone_number')
                                                 ->label('Phone Number'),
-                                            DatePicker::make('joining_date')
+                                            Flatpickr::make('joining_date')
                                                 ->label('Joining Date')
                                                 ->native(false)->closeOnDateSelection()
                                                 ->required(),
-                                            DatePicker::make('probation')
+                                            Flatpickr::make('probation')
                                                 ->label('Probation End Date')
                                                 ->native(false)->closeOnDateSelection()
                                                 ->hint('Leave blank if not applicable')
@@ -484,7 +483,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('Resign / Terminate')
                                                 ->helperText('Mark this if the employee has resigned or been terminated')
                                                 ->reactive(),
-                                            DatePicker::make('resign_date')
+                                            Flatpickr::make('resign_date')
                                                 ->label('Resignation / Termination Date')
                                                 ->required()
                                                 ->native(false)->closeOnDateSelection()
