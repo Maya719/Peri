@@ -3,7 +3,6 @@
 namespace App\Filament\Client\Pages\Settings;
 
 use App\Facades\Helper;
-use App\Filament\Client\Pages\Billing;
 use App\Filament\Client\Pages\Policy;
 use App\Filament\Client\Pages\Tenancy\EditTeamProfile;
 use App\Filament\Client\Resources\EmployeeResource;
@@ -26,12 +25,6 @@ class Index extends CardsPage
             ->title('Company')
             ->description('Manage Company Profile')
             ->icon('heroicon-o-building-office-2')
-            ->group('General');
-
-        $cards[] = CardItem::make(Billing::class)
-            ->title('Subscription')
-            ->description('Manage Subscribed Plan')
-            ->icon('heroicon-o-credit-card')
             ->group('General');
 
         $cards[] = CardItem::make(Admins::class)

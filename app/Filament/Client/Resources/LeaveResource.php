@@ -1194,7 +1194,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                         fn() => null
                     ),
                 Tables\Filters\SelectFilter::make('paid')
-                    ->placeholder('Payment')
+                    ->placeholder('Paid/Unpaid')
                     ->searchable()
                     ->options([
                         1 => 'Paid',

@@ -19,6 +19,9 @@ Route::name('payment.')->prefix('pay')->withoutMiddleware([\App\Http\Middleware\
     Route::post('initiate', [PaymentController::class, 'initiate'])->name('initiate');
     Route::get('info', [PaymentController::class, 'info'])->name('info');
 });
+Route::post('/payment-methods/store', [PaymentController::class, 'store'])
+    ->name('filament.client.payment-methods.store');
+
 Route::any('pay/callback/{gateway}', [PaymentController::class, 'verify'])->name('payments.callback');
 
 Route::get('/', [Home::class, 'index'])->name('home.index');

@@ -9,6 +9,12 @@ use App\Services\Contracts\Subscriber;
 /**
  * @method static void register(Subscriber|array $author)
  * @method static Collection getOptions()
+ * @method void beforeSubscription(\Closure $closure)
+ * @method void beforeRenew(\Closure $closure)
+ * @method void beforeChange(\Closure $closure)
+ * @method \Closure getBeforeSubscription()
+ * @method \Closure getBeforeRenew()
+ * @method \Closure getBeforeChange()
  * @method void afterSubscription(\Closure $closure)
  * @method void afterRenew(\Closure $closure)
  * @method void afterCanceling(\Closure $closure)

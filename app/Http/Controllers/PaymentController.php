@@ -184,22 +184,28 @@ class PaymentController extends Controller
         ]);
     }
 
-    public function verify(Request $request, string $gatway)
+    public function verify(Request $request, string $gatewayAlias)
     {
+        $gateway = \App\Models\PaymentGateway::where('alias', $gatewayAlias)->firstOrFail();
+        $driverClass = config('filament-payments.path') . "\\".$gateway->alias;
 
-        $drivers = config('filament-payments.drivers');
-        $gaywayClass = false;
-        foreach ($drivers as $driver) {
-            if (str($driver)->contains($gatway)) {
-                $gaywayClass = app($driver);
-                break;
+        if (!class_exists($driverClass)) {
+            $drivers = config('filament-payments.drivers');
+            foreach ($drivers as $driver) {
+                if (str($driver)->contains($gateway->alias)) {
+                    $driverClass = $driver;
+                    break;
+                }
             }
         }
-        if (!$gaywayClass) {
-            $gaywayClass = app(config('filament-payments.path') . "\\" . $gatway);
+
+        if (!class_exists($driverClass)) {
+            abort(404, 'Payment gateway driver not found.');
         }
 
-        return $gaywayClass->verify($request);
+        $driverInstance = new $driverClass($gateway);
+
+        return $driverInstance->verify($request);
     }
     
     public function paymentSuccess()

@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Events\ChangePlan;
 use App\Events\RenewPlan;
 use App\Events\SubscribePlan;
+use Carbon\Carbon;
+use Filament\Notifications\Notification;
 use Illuminate\Support\ServiceProvider;
 use App\Facades\FilamentPayments;
 use App\Services\Contracts\PaymentBillingInfo;
@@ -12,16 +14,9 @@ use App\Services\Contracts\PaymentCustomer;
 use App\Services\Contracts\PaymentRequest;
 use App\Services\Contracts\PaymentShippingInfo;
 use App\Facades\FilamentSubscriptions;
-use App\Filament\Client\Pages\PaymentSuccess;
-use App\Models\Payment;
-use App\Services\Contracts\Payload;
-use Illuminate\Http\RedirectResponse;
 use App\Models\Plan;
 use App\Models\Team;
 use App\Models\User;
-use Filament\Facades\Filament;
-use Filament\Notifications\Notification;
-use Filament\Notifications\Actions\Action;
 
 class FilamentPaymentsServiceProvider extends ServiceProvider
 {
@@ -67,47 +62,26 @@ class FilamentPaymentsServiceProvider extends ServiceProvider
                 ->success();
         });
         FilamentSubscriptions::afterRenew(function ($data) {
-            $team_name = Team::find($data['team_id'])?->name ?? 'Unknown Team';
-            User::where('is_super_admin', true)->get()->each(function ($user) use ($team_name) {
-                Notification::make()
-                    ->title('Subscription Renew')
-                    ->success()
-                    ->body("Subscription renewal for " . $team_name . ".")
-                    ->sendToDatabase($user, isEventDispatched: true);
-            });
+            $tenant = Team::find($data['team_id']);
+            $currentSubscription = $tenant->planSubscriptions()->first();
+            $currentSubscription->canceled_at = Carbon::parse($currentSubscription->cancels_at)->addDays(1);
+            $currentSubscription->cancels_at = Carbon::parse($currentSubscription->cancels_at)->addDays(1);
+            $currentSubscription->ends_at = Carbon::parse($currentSubscription->cancels_at)->addDays(1);
+            $currentSubscription->save();
+            $currentSubscription->renew($currentSubscription->plan);
             Notification::make()
-                ->title('Subscription Renew')
+                ->title('Subscription Renewed')
                 ->body("Your subscription has been successfully renewed.")
                 ->success();
+            return redirect("/client");
         });
         FilamentSubscriptions::afterCanceling(function ($data) {
-            $team_name = Team::find($data['team_id'])?->name ?? 'Unknown Team';
-            User::where('is_super_admin', true)->get()->each(function ($user) use ($team_name) {
-                Notification::make()
-                    ->title('Subscription Cancelled')
-                    ->success()
-                    ->body("Subscription cancelled by " . $team_name . ".")
-                    ->sendToDatabase($user, isEventDispatched: true);
-            });
-            Notification::make()
-                ->title('Subscription Cancelled')
-                ->body("Your subscription has been cancelled.")
-                ->success();
+
         });
 
         FilamentSubscriptions::afterChange(function ($data) {
-            $team_name = Team::find($data['team_id'])?->name ?? 'Unknown Team';
-            User::where('is_super_admin', true)->get()->each(function ($user) use ($team_name) {
-                Notification::make()
-                    ->title('Subscription Changed')
-                    ->success()
-                    ->body("Subscription changed by " . $team_name . ".")
-                    ->sendToDatabase($user, isEventDispatched: true);
-            });
-            Notification::make()
-                ->title('Subscription Changed')
-                ->body("Your subscription has been changed.")
-                ->success();
+            $data['subscription']->changePlan($data['new']);
+            return redirect("/client");
         });
     }
     private function PaymentPage($data, $event)

@@ -2,11 +2,7 @@
 
 namespace App\Services;
 
-use App\Facades\FilamentNotify;
-use App\Models\Team;
-use App\Models\User;
 use Filament\Facades\Filament;
-use Filament\Notifications\Notification;
 use Illuminate\Support\Collection;
 use App\Services\Contracts\Subscriber;
 

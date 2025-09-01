@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Filament\Client\Pages\Subscriptions\Billing;
 use App\Models\Team;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -70,7 +71,6 @@ class FilamentPaymentsServices
 
         $validated = $validator->validated();
 
-
         // Create the Payment
         $payment = Payment::create([
             'model_id' => $validated['model_id'],
@@ -87,23 +87,17 @@ class FilamentPaymentsServices
             'shipping_info' => $validated['shipping_info'] ?? [],
             'billing_info' => $validated['billing_info'] ?? [],
         ]);
-        PaymentLog::create([
-            'team_id' => $validated['team_id'],
-            'payment_id' => $payment->id,
-            'status' => 0,
-            'payload' => $validated
-        ]);
         if ($json) {
             return response()->json([
                 'status' => 'success',
                 'message' => 'Payment created successfully',
                 'data' => [
                     'id' => $payment->trx,
-                    'url' => route('payment.index', $payment->trx),
+                    'url' => Billing::getUrl(['trx' => $payment->trx]),
                 ]
             ], 201);
         } else {
-            return route('payment.index', $payment->trx);
+            return Billing::getUrl(['trx' => $payment->trx]);
         }
     }
 

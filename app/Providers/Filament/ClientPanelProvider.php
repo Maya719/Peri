@@ -5,7 +5,6 @@ namespace App\Providers\Filament;
 use App\Facades\Helper;
 use App\Filament\Client\Pages\Tenancy\EditTeamProfile;
 use App\Filament\Client\Pages\Tenancy\RegisterTeam;
-use App\Filament\Client\Pages\Billing;
 use App\Filament\Client\Pages\Dashboard;
 use App\Filament\Client\Pages\Auth\Login;
 use App\Filament\Client\Pages\Auth\EmailVerificationPrompt;
@@ -92,7 +91,6 @@ class ClientPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Client/Pages'), for: 'App\\Filament\\Client\\Pages')
             ->pages([
                 Dashboard::class,
-                Billing::class,
             ])
             ->plugins([
                 AuthUIEnhancerPlugin::make()
@@ -134,6 +132,9 @@ class ClientPanelProvider extends PanelProvider
                     ->label('Payroll Management')
                     ->icon('heroicon-o-banknotes'),
                 NavigationGroup::make()
+                    ->label('Subscription')
+                    ->icon('heroicon-o-credit-card'),
+                NavigationGroup::make()
                     ->label('Settings')
                     ->icon('heroicon-o-cog-6-tooth'),
             ])
@@ -152,8 +153,8 @@ class ClientPanelProvider extends PanelProvider
                 ExtendedAuthenticate::class,
             ])
             ->tenantMiddleware([
-                VerifyBillableIsSubscribed::class,
                 DefaultTeamVerify::class,
+                VerifyBillableIsSubscribed::class,
             ], isPersistent: true)
             ->databaseNotificationsPolling('5s')
             ->routes(function () {
@@ -173,12 +174,17 @@ class ClientPanelProvider extends PanelProvider
             ->renderHook('panels::topbar.before', function () {
                 return View::make('filament.client.pages.notices')->render();
             })
+            ->renderHook('panels::footer.before', function () {
+                return View::make('filament.client.components.stripe')->render();
+            })
             ->renderHook('panels::global-search.before', function () {
                 $team = Filament::getTenant();
                 $subscription = $team->activePlanSubscriptions()->first();
-                $plan = $subscription->plan;
-                if (($subscription->ends_at->isBetween(now(), now()->addDays(7))) || ($plan->isFree()) || ($subscription->trial_ends_at->isBetween(now(), now()->addDays(7)))) {
-                    return Blade::render('@livewire(\'subscription-card\')');
+                if ($subscription) {
+                    $plan = $subscription->plan;
+                    if (($subscription->ends_at->isBetween(now(), now()->addDays(7))) || ($plan->isFree()) || ($subscription->trial_ends_at->isBetween(now(), now()->addDays(7)))) {
+                        return Blade::render('@livewire(\'subscription-card\')');
+                    }
                 }
                 return '';
             })

@@ -2,7 +2,7 @@
 
 namespace App\Livewire;
 
-use App\Filament\Client\Pages\Billing;
+use App\Filament\Client\Pages\Subscriptions\Subscriptions;
 use Filament\Facades\Filament;
 use Livewire\Component;
 
@@ -50,7 +50,7 @@ class SubscriptionCard extends Component
         ) {
             $this->text = $subscription->plan->name;
         }
-        $this->redirectUrl = Billing::getUrl();
+        $this->redirectUrl = Subscriptions::getUrl();
     }
     private function get_free_trial_icon(): string
     {
