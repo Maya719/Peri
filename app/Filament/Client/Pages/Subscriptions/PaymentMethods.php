@@ -32,20 +32,26 @@ class PaymentMethods extends Page implements HasActions
     }
     public function mount()
     {
+        $this->loadPaymentMethods();
+    }
+    private function loadPaymentMethods(): void
+    {
         $this->customer_id = Filament::getTenant()->payment_methods()->first()?->stripe_customer_id;
+
         if (!$this->customer_id) {
-            return [];
+            $this->payment_methods = [];
+            return;
         }
+
         $stripe = new \Stripe\StripeClient(app(StripeV3::class)->secretKey());
-        // Get customer
         $customer = $stripe->customers->retrieve($this->customer_id);
         $defaultPaymentMethodId = $customer->invoice_settings->default_payment_method;
-        // Get all payment methods
+
         $methods = $stripe->paymentMethods->all([
             'customer' => $this->customer_id,
             'type' => 'card',
         ]);
-        
+
         $this->payment_methods = collect($methods->data)->map(function ($method) use ($defaultPaymentMethodId) {
             return [
                 'id' => $method->id,
@@ -115,5 +121,14 @@ class PaymentMethods extends Page implements HasActions
                         ->send();
                 }
             });
+    }
+    public function setDefault($payment_method_id)
+    {
+        StripeV3::setDefaultPaymentMethod($this->customer_id, $payment_method_id);
+        $this->loadPaymentMethods();
+        Notification::make()
+            ->title('Payment method changed successfully')
+            ->success()
+            ->send();
     }
 }

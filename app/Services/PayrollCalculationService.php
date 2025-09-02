@@ -323,7 +323,7 @@ class PayrollCalculationService
     private function calculateAttendanceSummary(User $user, Carbon $startDate, Carbon $endDate, int $initialWorkingDays): array
     {
         $employeeJoiningDate = $user->joining_date ? Carbon::parse($user->joining_date)->startOfDay() : null;
-        $policy = $this->HelperService->policy(Filament::getTenant()->id); // Assuming policy() can accept admin_id
+        $policy = $this->HelperService->policy(); // Assuming policy() can accept admin_id
 
         $allAttendances = $this->HelperService->getAttendanceWithinDateRange($startDate->toDateString(), $endDate->toDateString(), $user->id);
         $leaveBalances = $this->leaveService->getLeaveBalanceForUser($user, $startDate->toDateString(), $endDate->toDateString());
@@ -765,6 +765,15 @@ class PayrollCalculationService
                 $payroll->attendance_data['apply_overtime_earnings']
             ) {
                 $sum += $payroll->attendance_data['overtime_earning_amount'] ?? 0;
+            }
+
+            // Taxable ad-hoc earnings
+            if (isset($payroll->earnings_data['ad_hoc_earnings'])) {
+                foreach ($payroll->earnings_data['ad_hoc_earnings'] as $earning) {
+                    if (($earning['tax_status'] ?? 'taxable') === 'taxable') {
+                        $sum += $earning['calculated_amount'] ?? 0;
+                    }
+                }
             }
 
             return $sum;

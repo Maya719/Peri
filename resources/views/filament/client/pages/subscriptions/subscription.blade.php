@@ -8,7 +8,11 @@
                 <x-slot name="headerEnd">
                     <span
                         class="inline-flex items-center px-3 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-300">
-                        Active
+                        @if ($this->currentSubscription->active())
+                            Active
+                        @else
+                            Inactive
+                        @endif
                     </span>
                 </x-slot>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -42,13 +46,10 @@
                     </div>
                     <div class="flex items-center gap-3">
                         {{ $this->autoRenew }}
-
-                        @if (!$this->currentSubscription->auto_renew && now()->greaterThan($this->currentSubscription->ends_at))
-                            <x-filament::button color="primary" icon="heroicon-s-arrow-path"
-                                wire:click="renewPlan({{ $this->currentPlan->id }})">
-                                Renew
-                            </x-filament::button>
-                        @endif
+                        <x-filament::button color="primary" icon="heroicon-s-arrow-path"
+                            wire:click="renewPlan({{ $this->currentPlan->id }})">
+                            Renew
+                        </x-filament::button>
                     </div>
                 </div>
             </x-filament::section>

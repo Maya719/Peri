@@ -10,11 +10,9 @@ use App\Http\Controllers\PayrollDownloadController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Middleware\ExtendedAuthenticate;
 use Illuminate\Support\Facades\Route;
-use App\Livewire\PaymentProcess;
 use App\Models\EmailTemplate;
 
 Route::name('payment.')->prefix('pay')->withoutMiddleware([\App\Http\Middleware\VerifyBillableIsSubscribed::class])->group(function () {
-    Route::get('{trx}', PaymentProcess::class)->name('index');
     Route::get('{trx}/cancel', [PaymentController::class, 'cancel'])->name('cancel');
     Route::post('initiate', [PaymentController::class, 'initiate'])->name('initiate');
     Route::get('info', [PaymentController::class, 'info'])->name('info');
