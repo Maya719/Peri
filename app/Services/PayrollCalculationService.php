@@ -51,7 +51,6 @@ class PayrollCalculationService
         $teamId = Filament::getTenant()->id;
 
         if ($teamId === null || !is_int($teamId)) {
-            Log::error("PayrollCalculationService: Invalid admin_id for User ID {$userId}. admin_id value: " . print_r($teamId, true));
             throw new \InvalidArgumentException("User with ID {$userId} has an invalid or missing admin_id. Payroll calculation cannot proceed.");
         }
 
@@ -240,7 +239,6 @@ class PayrollCalculationService
 
                 $this->currencySymbol = ($taxSlab && !empty($taxSlab->salary_currency)) ? $taxSlab->salary_currency : '';
             } else {
-                Log::warning("PayrollCalculationService: CompanyDetail or country not found for Team {$teamId}. Currency symbol set to empty.");
                 $this->currencySymbol = '';
             }
         }
@@ -275,7 +273,6 @@ class PayrollCalculationService
     {
         $teamId = Filament::getTenant()->id;
         if ($teamId === null || !is_int($teamId)) {
-            Log::error("PayrollCalculationService::calculateWorkingDays: Invalid admin_id for User ID {$employee->id}. admin_id value: " . print_r($teamId, true));
             throw new \InvalidArgumentException("User with ID {$employee->id} has an invalid or missing admin_id. Cannot calculate working days.");
         }
 
@@ -688,7 +685,6 @@ class PayrollCalculationService
         $companyCountry = $companyDetails ? $companyDetails->country_id : null;
 
         if (!$companyCountry) {
-            Log::warning("Company country not set for admin ID: {$teamId}");
             return [
                 'annual_taxable_salary' => round($monthlyTaxableBaseForCurrentPeriod),
                 'monthly_taxable_base' => round($monthlyTaxableBaseForCurrentPeriod),
@@ -696,6 +692,8 @@ class PayrollCalculationService
                 'monthly_tax_calculated' => 0.0,
                 'tax_slabs_country' => null,
                 'months_remaining_in_fy' => 1,
+                'total_taxable_earnings_for_period' => $totalTaxableEarningsForCurrentPeriod,
+                'total_non_taxable_deductions_for_period' => $totalNonTaxableDeductionsForCurrentPeriod,
             ];
         }
 
@@ -713,7 +711,6 @@ class PayrollCalculationService
             $fyStartDate = Carbon::parse($taxSlabsRecord->financial_year_start);
             $fyEndDate = Carbon::parse($taxSlabsRecord->financial_year_end);
         } else {
-            Log::warning("No applicable tax slabs found for country: {$companyCountry} for admin {$teamId} for date {$currentRunStartDate->toDateString()}");
             return [
                 'annual_taxable_salary' => round($monthlyTaxableBaseForCurrentPeriod),
                 'monthly_taxable_base' => round($monthlyTaxableBaseForCurrentPeriod),
@@ -721,6 +718,8 @@ class PayrollCalculationService
                 'monthly_tax_calculated' => 0.0,
                 'tax_slabs_country' => $companyCountry,
                 'months_remaining_in_fy' => 1,
+                'total_taxable_earnings_for_period' => $totalTaxableEarningsForCurrentPeriod,
+                'total_non_taxable_deductions_for_period' => $totalNonTaxableDeductionsForCurrentPeriod,
             ];
         }
 
@@ -737,63 +736,48 @@ class PayrollCalculationService
             ->where('date_range_start', '>=', $currentFYStart->toDateString())
             ->where('date_range_start', '<', $currentRunStartDate->toDateString());
 
-        // Get all previous payrolls in the current financial year.
         $previousPayrolls = (clone $previousMonthsPayrollQuery)->get();
 
-        // Sum the actual taxable base from all previous payrolls.
         $previousMonthsTaxableBaseSum = $previousPayrolls->sum(function ($payroll) {
             return (float) ($payroll->tax_data['monthly_taxable_base'] ?? 0);
         });
 
-        // Sum the actual non-taxable earnings from all previous payrolls.
-        // IMPORTANT: Per user instruction, statutory component is NOT a non-taxable earning.
         $previousMonthsTaxableEarningsSum = $previousPayrolls->sum(function ($payroll) {
+            if (isset($payroll->tax_data['total_taxable_earnings_for_period'])) {
+                return (float) $payroll->tax_data['total_taxable_earnings_for_period'];
+            }
+            // Fallback logic for older records
             $sum = 0;
-
-            // Taxable custom earnings
             if (isset($payroll->earnings_data['custom_earnings_applied'])) {
                 foreach ($payroll->earnings_data['custom_earnings_applied'] as $earning) {
-                    if (($earning['tax_status'] ?? 'taxable') === 'taxable') {
-                        $sum += $earning['calculated_amount'] ?? 0;
-                    }
+                    if (($earning['tax_status'] ?? 'taxable') === 'taxable') { $sum += $earning['calculated_amount'] ?? 0; }
                 }
             }
-
-            // Taxable attendance earnings (overtime)
-            if (
-                isset($payroll->attendance_data['apply_overtime_earnings']) &&
-                $payroll->attendance_data['apply_overtime_earnings']
-            ) {
+            if (isset($payroll->attendance_data['apply_overtime_earnings']) && $payroll->attendance_data['apply_overtime_earnings']) {
                 $sum += $payroll->attendance_data['overtime_earning_amount'] ?? 0;
             }
-
-            // Taxable ad-hoc earnings
             if (isset($payroll->earnings_data['ad_hoc_earnings'])) {
                 foreach ($payroll->earnings_data['ad_hoc_earnings'] as $earning) {
-                    if (($earning['tax_status'] ?? 'taxable') === 'taxable') {
-                        $sum += $earning['calculated_amount'] ?? 0;
-                    }
+                    if (($earning['tax_status'] ?? 'taxable') === 'taxable') { $sum += $earning['calculated_amount'] ?? 0; }
                 }
             }
-
             return $sum;
         });
 
-        // Sum the actual non-taxable deductions from all previous payrolls.
         $previousMonthsNonTaxableDeductionsSum = $previousPayrolls->sum(function ($payroll) {
+            if (isset($payroll->tax_data['total_non_taxable_deductions_for_period'])) {
+                return (float) $payroll->tax_data['total_non_taxable_deductions_for_period'];
+            }
+            // Fallback logic for older records
             $sum = 0;
             if (isset($payroll->deductions_data['custom_deductions_applied'])) {
                 foreach ($payroll->deductions_data['custom_deductions_applied'] as $deduction) {
-                    if (($deduction['tax_status'] ?? 'non-taxable') === 'non-taxable') {
-                        $sum += $deduction['calculated_amount'] ?? 0;
-                    }
+                    if (($deduction['tax_status'] ?? 'non-taxable') === 'non-taxable') { $sum += $deduction['calculated_amount'] ?? 0; }
                 }
             }
             if (isset($payroll->fund_data)) {
                 foreach ($payroll->fund_data as $fund) {
-                    if (($fund['tax_status'] ?? 'non-taxable') === 'non-taxable') {
-                        $sum += $fund['calculated_amount'] ?? 0;
-                    }
+                    if (($fund['tax_status'] ?? 'non-taxable') === 'non-taxable') { $sum += $fund['calculated_amount'] ?? 0; }
                 }
             }
             $sum += $payroll->loan_amount ?? 0;
@@ -806,14 +790,11 @@ class PayrollCalculationService
             return $sum;
         });
 
-        // Project the annual taxable base by adding past actuals to projected future earnings.
         $projectedAnnualTaxableBase = $previousMonthsTaxableBaseSum + ($monthlyTaxableBaseForCurrentPeriod * $monthsRemainingInFY);
 
-        // Get the total Year-To-Date non-taxable earnings and deductions.
         $totalYTDEarnings = $previousMonthsTaxableEarningsSum + $totalTaxableEarningsForCurrentPeriod;
         $totalYTDDeductions = $previousMonthsNonTaxableDeductionsSum + $totalNonTaxableDeductionsForCurrentPeriod;
 
-        // The final projected salary for tax calculation.
         $projectedAnnualSalary = $projectedAnnualTaxableBase + $totalYTDEarnings - $totalYTDDeductions;
 
         $totalAnnualTax = 0.0;
@@ -856,14 +837,32 @@ class PayrollCalculationService
         $monthlyTaxCalculated = $remainingTaxToBePaid > 0 ? round($remainingTaxToBePaid / $monthsRemainingInFY) : 0.0;
         $monthlyTaxCalculated = max(0, $monthlyTaxCalculated);
 
-        return [
+        $result = [
             'annual_taxable_salary' => round($projectedAnnualSalary),
             'monthly_taxable_base' => round($monthlyTaxableBaseForCurrentPeriod),
             'total_annual_tax_calculated' => round($totalAnnualTax),
             'monthly_tax_calculated' => round($monthlyTaxCalculated),
             'tax_slabs_country' => $companyCountry,
             'months_remaining_in_fy' => $monthsRemainingInFY,
+            'total_taxable_earnings_for_period' => $totalTaxableEarningsForCurrentPeriod,
+            'total_non_taxable_deductions_for_period' => $totalNonTaxableDeductionsForCurrentPeriod,
         ];
+
+        Log::info('Tax Calculation Log', [
+            'user_id' => $user->id,
+            'inputs' => [
+                'currentPeriodBaseSalary' => $currentPeriodBaseSalary,
+                'totalTaxableEarningsForCurrentPeriod' => $totalTaxableEarningsForCurrentPeriod,
+                'totalTaxableDeductionsForCurrentPeriod' => $totalTaxableDeductionsForCurrentPeriod,
+                'totalNonTaxableEarningsForCurrentPeriod' => $totalNonTaxableEarningsForCurrentPeriod,
+                'totalNonTaxableDeductionsForCurrentPeriod' => $totalNonTaxableDeductionsForCurrentPeriod,
+                'effectiveMonthIndicatorForCurrentRun' => $effectiveMonthIndicatorForCurrentRun,
+                'currentRunStartDate' => $currentRunStartDate->toDateString(),
+            ],
+            'result' => $result,
+        ]);
+
+        return $result;
     }
 
     protected function calculateMonthsRemainingInFY(int $currentMonth, int $currentDay, int $fyEndMonth, int $fyEndDay): int
