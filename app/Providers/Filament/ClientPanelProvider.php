@@ -182,7 +182,9 @@ class ClientPanelProvider extends PanelProvider
                 $subscription = $team->activePlanSubscriptions()->first();
                 if ($subscription) {
                     $plan = $subscription->plan;
-                    if (($subscription->ends_at->isBetween(now(), now()->addDays(7))) || ($plan->isFree()) || ($subscription->trial_ends_at->isBetween(now(), now()->addDays(7)))) {
+                    $endingSoon = $subscription->ends_at && $subscription->ends_at->isBetween(now(), now()->addDays(7));
+                    $trialEndingSoon = $subscription->trial_ends_at && $subscription->trial_ends_at->isBetween(now(), now()->addDays(7));
+                    if ($endingSoon || $plan->isFree() || $trialEndingSoon) {
                         return Blade::render('@livewire(\'subscription-card\')');
                     }
                 }

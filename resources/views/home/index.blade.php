@@ -48,7 +48,11 @@
                         <a href="{{ url('/client/register') }}"
                             class="hero-btn px-5 py-3 font-semibold rounded
                                   transition-all duration-300 hover:bg-white">
-                            {{ $freeplan->trial_period}} {{ ucfirst($freeplan->trial_interval) }} free trial →
+                            @if($freeplan)
+                                {{ $freeplan->trial_period}} {{ ucfirst($freeplan->trial_interval) }} free trial →
+                            @else
+                                Get Started →
+                            @endif
                         </a>
                     </div>
                 </div>
@@ -565,7 +569,7 @@
                                         </div>
                                         <p class="text-gray-200 leading-relaxed" x-text="section.description"></p>
                                         <a href="{{ url('/register') }}"
-                                            class="inline-block mt-4 bg-[var(--primary)] text-white px-4 py-2 rounded-lg font-bold 
+                                            class="inline-block mt-4 bg-[var(--primary)] text-white px-4 py-2 rounded-lg font-bold
                                         hover:bg-[var(--secondary)] transition duration-300">
                                             View →
                                         </a>

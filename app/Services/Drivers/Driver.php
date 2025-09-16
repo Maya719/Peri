@@ -212,7 +212,7 @@ abstract class Driver
         if (!$eventClass || !class_exists($eventClass)) {
             return;
         }
-        if ($eventClass === \App\Events\SubscribePlan::class) {
+        if ($eventClass === \App\Events\BeforeSubscribePlan::class) {
             $tenant->newPlanSubscription($plan->slug, $plan);
             $tenant->planSubscription($plan->slug)->recordFeatureUsage('funds', 0, false);
             $tenant->planSubscription($plan->slug)->recordFeatureUsage('biometric-devices', 0, false);
@@ -253,7 +253,7 @@ abstract class Driver
                 "team_id" => $tenant->id
             ]);
         }
-        if ($eventClass === \App\Events\ChangePlan::class) {
+        if ($eventClass === \App\Events\BeforeChangePlan::class) {
             $currentSubscription = $tenant->planSubscriptions()->first();
             Event::dispatch(new $eventClass([
                 "old" => $currentSubscription->plan,
@@ -270,5 +270,5 @@ abstract class Driver
             ]);
         }
     }
-    
+
 }

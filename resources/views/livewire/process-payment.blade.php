@@ -1,11 +1,7 @@
     <div class="fi-page-content mx-auto w-full max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
         <div class="space-y-6">
             <x-filament::section class="p-6">
-                <x-slot name="heading">
-                    Duration
-                </x-slot>
                 <form wire:submit="completePayment">
-                    {{ $this->form }}
                     <style>
                         .fi-radio-list-wrapper .fi-fo-radio .fi-fo-radio-option-label-wrapper {
                             padding: 12px 16px;
@@ -51,7 +47,7 @@
                         }
                     </style>
 
-                    <x-filament::section class="mt-6">
+                    <x-filament::section class="mt-6 mb-3">
                         <x-slot name="heading">
                             Order Summary
                         </x-slot>
@@ -92,6 +88,7 @@
                             @endif
                         </div>
                     </x-filament::section>
+                    {{ $this->form }}
 
                     <div
                         class="text-xs text-gray-500 dark:text-gray-400 mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">

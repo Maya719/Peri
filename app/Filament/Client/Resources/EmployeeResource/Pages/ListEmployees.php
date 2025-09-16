@@ -24,11 +24,6 @@ class ListEmployees extends ListRecords
 
     protected string $moduleName = 'employees';
 
-    public function mount(): void
-    {
-        parent::mount();
-        $this->authorizeModule();
-    }
     protected function getHeaderActions(): array
     {
         return [
@@ -95,7 +90,6 @@ class ListEmployees extends ListRecords
                         ->modalWidth('md'),
                 ]
             )   
-                ->visible(fn() => Helper::is_module_allowed('employees'))      
                 ->label('Add')
                 ->icon('heroicon-o-plus')
                 ->color('primary')

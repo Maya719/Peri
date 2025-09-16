@@ -1213,7 +1213,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                     ])->indicateUsing(
                         fn() => null
                     ),
-                DateRangeFilter::make('created_at')
+                DateRangeFilter::make('starting_date')
                     ->icon('heroicon-o-arrow-path')
                     ->startDate(Carbon::now()->startOfMonth())
                     ->endDate(Carbon::now())

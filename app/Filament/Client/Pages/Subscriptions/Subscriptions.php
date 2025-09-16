@@ -2,8 +2,9 @@
 
 namespace App\Filament\Client\Pages\Subscriptions;
 
-use App\Events\ChangePlan;
-use App\Events\RenewPlan;
+use App\Events\BeforeChangePlan;
+use App\Events\BeforeRenewPlan;
+use App\Events\BeforeSubscribePlan;
 use App\Facades\FilamentSubscriptions;
 use App\Http\Middleware\VerifyBillableIsSubscribed;
 use App\Models\Plan;
@@ -18,6 +19,8 @@ class Subscriptions extends Page
     public $tenant;
     public $currentSubscription;
     public $recommendedPlan;
+    public $currentPlan;
+    public $plans;
     public bool $isFreePlan = false;
     protected static ?string $navigationGroup = 'Subscription';
     protected static string $view = 'filament.client.pages.subscriptions.subscription';
@@ -32,10 +35,14 @@ class Subscriptions extends Page
     public function mount()
     {
         $this->tenant = Filament::getTenant();
+        $this->plans = Plan::where('price', '>', 0)->where('is_active',true)->get();
         $this->currentSubscription = $this->getActiveSubscription();
-        $this->currentPlan = $this->getCurrentPlan();
-        $this->recommendedPlan = $this->getRecommendedPlan();
-        $this->isFreePlan = $this->currentPlan->isFree();
+        if ($this->currentSubscription)
+        {
+            $this->currentPlan = $this->getCurrentPlan();
+            $this->recommendedPlan = $this->getRecommendedPlan();
+            $this->isFreePlan = $this->currentPlan->isFree();
+        }
     }
 
     public function getActiveSubscription()
@@ -46,6 +53,11 @@ class Subscriptions extends Page
     {
         return Action::make('autoRenew')
             ->label(fn() => $this->currentSubscription->auto_renew ? 'Off' : 'On')
+            ->requiresConfirmation()
+            ->modalHeading($this->currentSubscription->auto_renew ? 'AutoRenew Off' : 'AutoRenew On')
+            ->modalDescription('Are you sure you want to')
+            ->modalSubmitActionLabel($this->currentSubscription->auto_renew ? 'Off' : 'On')
+            ->modalCancelActionLabel('Cancel')
             ->action(function () {
                 $this->currentSubscription->auto_renew = !$this->currentSubscription->auto_renew;
                 if ($this->currentSubscription->auto_renew && !Filament::getTenant()->payment_methods()->count() > 0) {
@@ -121,16 +133,31 @@ class Subscriptions extends Page
                 ->danger()
                 ->send();
         }
-        Event::dispatch(new ChangePlan([
-            "old" => $this->currentSubscription->plan,
+        if ($this->currentSubscription)
+        {
+            Event::dispatch(new BeforeChangePlan([
+                "old" => $this->currentSubscription->plan,
+                "new" => $plan,
+                "subscription" => $this->currentSubscription,
+                "team_id" => Filament::getTenant()->id
+            ]));
+            return call_user_func(FilamentSubscriptions::getBeforeChange(), [
+                "old" => $this->currentSubscription->plan,
+                "new" => $plan,
+                "subscription" => $this->currentSubscription,
+                "team_id" => Filament::getTenant()->id
+            ]);
+        }
+        Event::dispatch(new BeforeSubscribePlan([
+            "old" => null,
             "new" => $plan,
-            "subscription" => $this->currentSubscription,
+            "subscription" => null,
             "team_id" => Filament::getTenant()->id
         ]));
-        return call_user_func(FilamentSubscriptions::getBeforeChange(), [
-            "old" => $this->currentSubscription->plan,
+        return call_user_func(FilamentSubscriptions::getBeforeSubscription(), [
+            "old" => null,
             "new" => $plan,
-            "subscription" => $this->currentSubscription,
+            "subscription" => null,
             "team_id" => Filament::getTenant()->id
         ]);
     }
@@ -145,7 +172,7 @@ class Subscriptions extends Page
                 ->danger()
                 ->send();
         }
-        Event::dispatch(new RenewPlan([
+        Event::dispatch(new BeforeRenewPlan([
             "old" => $this->currentSubscription->plan,
             "new" => $plan,
             "subscription" => $this->currentSubscription,

@@ -8,6 +8,9 @@ use App\Filament\Client\Resources\BiometricResource\RelationManagers;
 use App\Models\Biometric;
 use App\Models\User;
 use Carbon\Carbon;
+use Coolsam\Flatpickr\Enums\FlatpickrMode;
+use Coolsam\Flatpickr\Enums\FlatpickrMonthSelectorType;
+use Coolsam\Flatpickr\Enums\FlatpickrPosition;
 use Coolsam\Flatpickr\Forms\Components\Flatpickr;
 use Filament\Facades\Filament;
 use Filament\Forms;
@@ -89,15 +92,17 @@ class BiometricResource extends Resource implements HasKnowledgeBase
                                     fn($record) => ($record && ($record->status === 'approved' || $record->status === 'rejected'))
                                 ),
 
+
                             Flatpickr::make('timedate')
                                 ->label('Date & Time')
-                                ->time(true)
+                                ->time(true)                // Enable time picker
+                                ->time24hr(false)           // Use 12-hour format
+                                ->altInput(true)            // Show user-friendly format
+                                ->altFormat('F j, Y h:i K') // Show AM/PM in alt input
+                                ->format('Y-m-d H:i')     // Save in DB as 24-hour
                                 ->maxDate(fn() => today())
-                                ->seconds(false)
-                                ->time24hr(false)
-                                ->prefixIcon('heroicon-m-calendar')
-                                ->columns(1)
                                 ->required()
+                                ->allowInput()
                                 ->disabled(
                                     fn($record) => ($record && ($record->status === 'approved' || $record->status === 'rejected'))
                                 ),

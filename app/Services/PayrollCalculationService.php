@@ -89,7 +89,7 @@ class PayrollCalculationService
 
         $financialRates = $this->calculateFinancialRates(
             $user,
-            $originalBaseSalaryForCalc,  // change from $baseSalaryForCalculations to $originalBaseSalaryForCalc becouse the per day rate and per minute rate should be based on the original base salary
+            $originalBaseSalaryForCalc,
             $workingData['workingDays']
         );
         $perDayRate = $financialRates['per_day_rate'];
@@ -1069,8 +1069,6 @@ class PayrollCalculationService
             ->get();
 
         $finalFundApplied = [];
-
-        // Use the raw salary (with increment if applied) for fund calculations
         $salaryForFundCalculation = $baseSalary;  // This is the raw salary with increment in recalculation
 
         foreach ($user_funds as $fund) {

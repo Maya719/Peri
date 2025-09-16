@@ -2,14 +2,16 @@
 
 namespace App\Livewire;
 
-use App\Events\ChangePlan;
-use App\Events\RenewPlan;
+use App\Events\AfterChangePlan;
+use App\Events\AfterRenewPlan;
+use App\Events\AfterSubscribePlan;
 use App\Facades\FilamentSubscriptions;
 use App\Models\Payment;
 use App\Models\PaymentGateway;
 use App\Models\Plan;
 use App\Services\Drivers\StripeV3;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Number;
 use Livewire\Component;
 use Filament\Forms\Components\Radio;
@@ -66,23 +68,6 @@ class ProcessPayment extends Component implements HasForms
     protected function getFormSchema(): array
     {
         return [
-            Radio::make('selectedDuration')
-                ->label('Billing Cycle')
-                ->options([
-                    '1_month' => '1 Month',
-                    '6_months' => '6 Months',
-                    '12_months' => '12 Months',
-                ])
-                ->descriptions([
-                    '1_month' => 'US$ ' . Number::currency($this->payment->amount) . '/month',
-                    '6_months' => 'US$ ' . Number::currency($this->payment->amount) . '/month (billed semi-annually)',
-                    '12_months' => 'US$ ' . Number::currency($this->payment->amount) . '/month (billed annually)',
-                ])
-                ->default('1_month')
-                ->inline(false)
-                ->extraAttributes(['class' => 'fi-radio-list-wrapper'])
-                ->live(),
-
             Select::make('selectedPaymentMethod')
                 ->label('Payment method')
                 ->options(
@@ -100,21 +85,13 @@ class ProcessPayment extends Component implements HasForms
                         return [$method['id'] => $label];
                     })
                 )
-                ->disablePlaceholderSelection()
                 ->searchable()
                 ->required(),
         ];
     }
     public function afterDurationUpdate()
     {
-        $months = match ($this->selectedDuration) {
-            '12_months' => 12,
-            '6_months' => 6,
-            '1_month' => 1,
-            default => 1,
-        };
-
-        return $this->basePrice * $months;
+        return $this->basePrice;
     }
     public function getTotalProperty()
     {
@@ -159,6 +136,11 @@ class ProcessPayment extends Component implements HasForms
             if (!$this->currentSubscription->active()) {
                 $this->payment->detail = "Subscription Renewed";
                 $this->payment->save();
+                Event::dispatch(new AfterRenewPlan([
+                    "old" => $this->currentSubscription->plan,
+                    "new" => $this->plan,
+                    "subscription" => $this->currentSubscription
+                ]));
                 return call_user_func(FilamentSubscriptions::getAfterRenew(), [
                     "old" => $this->currentSubscription->plan,
                     "new" => $this->plan,
@@ -168,6 +150,11 @@ class ProcessPayment extends Component implements HasForms
             }
             $this->payment->detail = "Subscription Changed";
             $this->payment->save();
+            Event::dispatch(new AfterChangePlan([
+                "old" => $this->currentSubscription->plan,
+                "new" => $this->plan,
+                "subscription" => $this->currentSubscription
+            ]));
             return call_user_func(FilamentSubscriptions::getAfterChange(), [
                 "old" => $this->currentSubscription->plan,
                 "new" => $this->plan,
@@ -175,6 +162,19 @@ class ProcessPayment extends Component implements HasForms
                 "team_id" => Filament::getTenant()->id
             ]);
         }
+        $this->payment->detail = "Subscription";
+        $this->payment->save();
+        Event::dispatch(new AfterSubscribePlan([
+            "old" => null,
+            "new" => $this->plan,
+            "subscription" => null
+        ]));
+        return call_user_func(FilamentSubscriptions::getAfterSubscription(), [
+            "old" => null,
+            "new" => $this->plan,
+            "subscription" => null,
+            "team_id" => Filament::getTenant()->id
+        ]);
     }
 
     public function calculateFee()

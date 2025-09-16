@@ -54,50 +54,69 @@ class PlanResource extends Resource
                             ->columnSpanFull()
                             ->label('Name')
                             ->required(),
+
                         TextInput::make('description')
                             ->columnSpanFull()
                             ->label('Description'),
 
                         Forms\Components\Hidden::make('currency')
                             ->default('USD'),
-                        TextInput::make('price')
-                            ->default(0)
-                            ->label('Price')
-                            ->required()
-                            ->numeric()
-                            ->prefix('$'),
-                        TextInput::make('signup_fee')
-                            ->label('Signup Fee')
-                            ->default(0)
-                            ->numeric()
-                            ->prefix('$'),
-                        Forms\Components\Select::make('invoice_interval')
-                            ->default(Interval::MONTH->value)
-                            ->label('Invoice Interval')
-                            ->options([
-                                Interval::DAY->value => 'Day',
-                                Interval::MONTH->value => 'Month',
-                                Interval::YEAR->value => 'Year',
-                            ])->required(),
-                        TextInput::make('invoice_period')
-                            ->label('Invoice Period')
-                            ->default(0)
-                            ->numeric()
-                            ->required(),
-                        Forms\Components\Select::make('trial_interval')
-                            ->default(Interval::MONTH->value)
-                            ->label('Trial Interval')
-                            ->options([
-                                Interval::DAY->value => 'Day',
-                                Interval::MONTH->value => 'Month',
-                                Interval::YEAR->value => 'Year',
-                            ]),
-                        TextInput::make('trial_period')
-                            ->label('Trial Period')
-                            ->default(0)
-                            ->numeric(),
                         Forms\Components\Toggle::make('is_active')
                             ->label('Active'),
+                        Forms\Components\Toggle::make('free_trial')
+                            ->label('Free Trial')
+                            ->live(),
+                        Forms\Components\Group::make()
+                            ->schema(components: [
+                                TextInput::make('price')
+                                    ->default(0)
+                                    ->label('Price')
+                                    ->required()
+                                    ->numeric()
+                                    ->prefix('$'),
+                                TextInput::make('signup_fee')
+                                    ->label('Signup Fee')
+                                    ->default(0)
+                                    ->numeric()
+                                    ->prefix('$'),
+                                Forms\Components\Grid::make(2)
+                                    ->schema([
+                                        TextInput::make('invoice_period')
+                                            ->label('Period')
+                                            ->default(1)
+                                            ->minValue(1)
+                                            ->numeric()
+                                            ->required(),
+                                        Forms\Components\Select::make('invoice_interval')
+                                            ->default(Interval::MONTH->value)
+                                            ->label(label: 'Interval')
+                                            ->options([
+                                                Interval::DAY->value => 'Day',
+                                                Interval::MONTH->value => 'Month',
+                                                Interval::YEAR->value => 'Year',
+                                            ])->required(),
+                                    ])
+                            ])->hidden(fn (Forms\Get $get) => $get('free_trial')),
+                        Forms\Components\Group::make()
+                            ->schema([
+                                Forms\Components\Grid::make(2)
+                                ->schema([
+                                    TextInput::make('trial_period')
+                                        ->label('Period')
+                                        ->default(1)
+                                        ->minValue(1)
+                                        ->numeric(),
+                                    Forms\Components\Select::make('trial_interval')
+                                        ->default(Interval::MONTH->value)
+                                        ->label('Interval')
+                                        ->options([
+                                            Interval::DAY->value => 'Day',
+                                            Interval::MONTH->value => 'Month',
+                                            Interval::YEAR->value => 'Year',
+                                        ]),
+                                ])
+                            ])->visible(fn (Forms\Get $get) => $get('free_trial')),
+
                     ])->columns(2)
             ]);
     }

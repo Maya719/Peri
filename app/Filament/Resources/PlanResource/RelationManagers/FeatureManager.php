@@ -79,22 +79,6 @@ class FeatureManager extends RelationManager
                         return $state;
                     })
                     ->columnSpanFull(),
-
-                Forms\Components\Select::make('resettable_interval')
-                    ->label('Resettable Interval')
-                    ->default(Interval::DAY->value)
-                    ->options([
-                        Interval::DAY->value => 'Day',
-                        Interval::MONTH->value => 'Month',
-                        Interval::YEAR->value => 'Year',
-                    ])
-                    ->required(),
-
-                Forms\Components\TextInput::make('resettable_period')
-                    ->label('Resettable Period')
-                    ->required()
-                    ->default(0)
-                    ->numeric(),
             ]);
     }
 
@@ -116,13 +100,6 @@ class FeatureManager extends RelationManager
                         }
                         return $state; // keep number as it is
                     })
-                    ->searchable(),
-
-                Tables\Columns\TextColumn::make('resettable_interval')
-                    ->label('Resettable Interval')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('resettable_period')
-                    ->label('Resettable Period')
                     ->searchable(),
             ])
             ->headerActions([

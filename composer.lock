@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "711dcee8dae5bfe619bcaedb92efc388",
+    "content-hash": "3d00399506a9c5a28c7a27fd5d5536ea",
     "packages": [
         {
             "name": "agile-bm/zk-lib",
