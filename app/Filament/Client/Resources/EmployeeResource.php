@@ -636,11 +636,11 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
     public static function canCreate(): bool
     {
         return Auth::check() && (
-            Auth::user()->hasRole('Admin', 'web') ||
-            Auth::user()->can('employees.manage') ||
-            Auth::user()->hasRole('CEO') ||
-            Auth::user()->hasRole('AMS Manager')
-        );
+                Auth::user()->hasRole('Admin', 'web') ||
+                Auth::user()->can('employees.manage') ||
+                Auth::user()->hasRole('CEO') ||
+                Auth::user()->hasRole('AMS Manager')
+            );
     }
 
     public static function canEdit($record): bool

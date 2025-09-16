@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Filament\Client\Pages\Subscriptions\Billing;
 use App\Models\Team;
+use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use App\Models\Payment;
@@ -74,6 +75,7 @@ class FilamentPaymentsServices
         // Create the Payment
         $payment = Payment::create([
             'model_id' => $validated['model_id'],
+            'team_id' => Filament::getTenant()->id,
             'model_type' => $validated['model'],
             'method_currency' => $validated['currency'],
             'amount' => $validated['amount'],

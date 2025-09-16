@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
-use App\Models\Team;
 
 /**
+ * @property int id
  * @property int model_id
  * @property string model_type
  * @property int method_id
@@ -63,7 +64,8 @@ class Payment extends Model
         'shipping_info',
         'billing_info',
         'created_at',
-        'updated_at'
+        'updated_at',
+        'team_id'
     ];
 
     /**
@@ -117,8 +119,8 @@ class Payment extends Model
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function team(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function team(): BelongsTo
     {
-        return $this->belongsTo(Team::class, 'model_id');
+        return $this->belongsTo(Team::class);
     }
 }

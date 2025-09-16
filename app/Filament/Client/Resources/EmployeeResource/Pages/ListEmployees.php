@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\URL;
 class ListEmployees extends ListRecords
 {
     protected static string $resource = EmployeeResource::class;
-    
+
     use HasModuleAuthorization;
 
     protected string $moduleName = 'employees';
@@ -89,7 +89,7 @@ class ListEmployees extends ListRecords
                         ->modalButton('Send Invite')
                         ->modalWidth('md'),
                 ]
-            )   
+            )
                 ->label('Add')
                 ->icon('heroicon-o-plus')
                 ->color('primary')
