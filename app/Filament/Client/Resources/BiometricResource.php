@@ -8,10 +8,8 @@ use App\Filament\Client\Resources\BiometricResource\RelationManagers;
 use App\Models\Biometric;
 use App\Models\User;
 use Carbon\Carbon;
-use Coolsam\Flatpickr\Enums\FlatpickrMode;
-use Coolsam\Flatpickr\Enums\FlatpickrMonthSelectorType;
-use Coolsam\Flatpickr\Enums\FlatpickrPosition;
-use Coolsam\Flatpickr\Forms\Components\Flatpickr;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Components\DateTimePicker;
@@ -86,26 +84,37 @@ class BiometricResource extends Resource implements HasKnowledgeBase
                                     'break_end' => 'Break End',
                                     'evening' => 'Evening',
                                 ])
+                                ->live()
+                                ->afterStateUpdated(function (Get $get, Set $set, ?string $state) {
+                                    if ($state) {
+                                        $date = Carbon::today();
+                                        switch ($state) {
+                                            case 'morning':
+                                                $date->setTime(9, 0);
+                                                break;
+                                            case 'break_start':
+                                                $date->setTime(12, 30);
+                                                break;
+                                            case 'break_end':
+                                                $date->setTime(13, 30);
+                                                break;
+                                            case 'evening':
+                                                $date->setTime(18, 0);
+                                                break;
+                                        }
+                                        $set('timedate', $date->format('Y-m-d H:i:s'));
+                                    }
+                                })
                                 ->columns(1)
                                 ->required()
-                                ->disabled(
-                                    fn($record) => ($record && ($record->status === 'approved' || $record->status === 'rejected'))
-                                ),
+                                ->disabled(fn($record) => ($record && in_array($record->status, ['approved', 'rejected']))),
 
-
-                            Flatpickr::make('timedate')
+                            DateTimePicker::make('timedate')
                                 ->label('Date & Time')
-                                ->time(true)                // Enable time picker
-                                ->time24hr(false)           // Use 12-hour format
-                                ->altInput(true)            // Show user-friendly format
-                                ->altFormat('F j, Y h:i K') // Show AM/PM in alt input
-                                ->format('Y-m-d H:i')     // Save in DB as 24-hour
+                                ->time(true)
                                 ->maxDate(fn() => today())
                                 ->required()
-                                ->allowInput()
-                                ->disabled(
-                                    fn($record) => ($record && ($record->status === 'approved' || $record->status === 'rejected'))
-                                ),
+                                ->disabled(fn($record) => ($record && in_array($record->status, ['approved', 'rejected']))),
 
                             TextInput::make('reason')
                                 ->required()
@@ -131,8 +140,8 @@ class BiometricResource extends Resource implements HasKnowledgeBase
                                 ->hidden(
                                     fn($record) =>
                                     !$record ||
-                                        ($record->user_id === Auth::id()) ||
-                                        !(Gate::allows('biometric.approve') || Auth::user()->hasRole('Admin'))
+                                    ($record->user_id === Auth::id()) ||
+                                    !(Gate::allows('biometric.approve') || Auth::user()->hasRole('Admin'))
                                 )
                                 ->disabled(
                                     fn($record) => ($record && ($record->status === 'approved' || $record && $record->status === 'rejected'))

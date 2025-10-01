@@ -308,7 +308,7 @@ class HelperService
 
         return '<small class="text-xs text-gray-500 font-medium">' . $fingersFormatted . '</small>';
     }
-
+    
     /**
      * Handle first half day attendance
      */
@@ -806,6 +806,7 @@ class HelperService
             });
         }
         $usersQuery->where('active', 1);
+        $usersQuery->orderBy('id', 'asc');
         $usersQuery->where('attendance_config', 1);
         return $usersQuery;
     }

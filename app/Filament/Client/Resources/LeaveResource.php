@@ -8,9 +8,10 @@ use App\Models\Leave;
 use App\Models\LeaveLog;
 use App\Models\Role;
 use Carbon\Carbon;
-use Coolsam\Flatpickr\Forms\Components\Flatpickr;
 use Filament\Facades\Filament;
 use Filament\Forms;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -399,7 +400,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                     // Regular Leave Fields
                                     Forms\Components\Grid::make()
                                         ->schema([
-                                            Flatpickr::make('starting_date')
+                                            DatePicker::make('starting_date')
                                                 ->required()
                                                 ->reactive()
                                                 ->label('Starting Date')
@@ -414,7 +415,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                     return null;
                                                 }),
 
-                                            Flatpickr::make('ending_date')
+                                            DatePicker::make('ending_date')
                                                 ->required()
                                                 ->label('Ending Date')
                                                 ->afterOrEqual('starting_date')
@@ -540,7 +541,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                     // Half Day Fields
                                     Forms\Components\Grid::make()
                                         ->schema([
-                                            Flatpickr::make('starting_date')
+                                            DatePicker::make('starting_date')
                                                 ->required()
                                                 ->label('Date')
                                                 ->native(false)->closeOnDateSelection()
@@ -569,7 +570,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                     // Short Leave Fields
                                     Forms\Components\Grid::make()
                                         ->schema([
-                                            Flatpickr::make('starting_date')
+                                            DatePicker::make('starting_date')
                                                 ->required()
                                                 ->label('Date')
                                                 ->native(false)->closeOnDateSelection()
@@ -587,14 +588,12 @@ class LeaveResource extends Resource implements HasKnowledgeBase
 
                                             Forms\Components\Grid::make(2)
                                                 ->schema([
-                                                    Flatpickr::make('starting_time')
-                                                        ->timePicker()
-                                                        ->time24hr(false)
-                                                        ->required()
-                                                        ->native(false)->closeOnDateSelection()
+                                                    TimePicker::make('starting_time')
                                                         ->label('Starting Time')
                                                         ->prefixIcon('heroicon-m-clock')
-                                                        ->withoutSeconds()
+                                                        ->seconds(false)
+                                                        ->required()
+                                                        ->displayFormat('h:i A')
                                                         ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                                             $endingTime = $get('ending_time');
                                                             if ($endingTime && $state >= $endingTime) {
@@ -605,14 +604,12 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                             }
                                                         }),
 
-                                                    Flatpickr::make('ending_time')
+                                                    TimePicker::make('ending_time')
                                                         ->label('Ending Time')
-                                                        ->timePicker()
-                                                        ->time24hr(false)
-                                                        ->required()
-                                                        ->native(false)->closeOnDateSelection()
                                                         ->prefixIcon('heroicon-m-clock')
-                                                        ->withoutSeconds()
+                                                        ->seconds(false)
+                                                        ->required()
+                                                        ->displayFormat('h:i A')
                                                         ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                                             $startingTime = $get('starting_time');
                                                             if ($startingTime && $startingTime >= $state) {
@@ -1130,7 +1127,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                             : null;
 
                         $time = $record->starting_time
-                            ? \Carbon\Carbon::parse($record->starting_time)->format('H:i A')
+                            ? \Carbon\Carbon::parse($record->starting_time)->format('h:i A')
                             : null;
 
                         if ($date && $time) {
@@ -1216,8 +1213,8 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                 DateRangeFilter::make('starting_date')
                     ->icon('heroicon-o-arrow-path')
                     ->startDate(Carbon::now()->startOfMonth())
-                    ->endDate(Carbon::now())
-                    ->maxDate(Carbon::now())->indicateUsing(
+                    ->endDate(Carbon::now()->endOfMonth())
+                    ->maxDate(Carbon::now()->endOfMonth())->indicateUsing(
                         fn() => null
                     ),
 

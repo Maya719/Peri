@@ -27,7 +27,6 @@ class RemoteAttendance extends Component
     {
         $user = Auth::user();
 
-        // Double-check permission before recording attendance
         if (!in_array($user->attendance_type, ['offsite', 'hybrid'])) {
             Notification::make()
                 ->title('Permission Denied')
@@ -38,10 +37,27 @@ class RemoteAttendance extends Component
         }
 
         $timezone = Filament::getTenant()->timezone ?? 'UTC';
+
+        $recentPunch = DB::table('attendances')
+            ->where('user_id', $user->id)
+            ->where('team_id', Filament::getTenant()->id)
+            ->where('finger', '>=', now()->subMinutes(10)->setTimezone($timezone))
+            ->exists();
+
+        if ($recentPunch) {
+            Notification::make()
+                ->title('Already Punched')
+                ->body('⏳ You already recorded attendance in the last 10 minutes.')
+                ->warning()
+                ->send();
+            return;
+        }
+
         DB::table('attendances')->insert([
-            'user_id'    => $user->id,
-            'finger'     => now()->setTimezone($timezone),
-            'note'       => 'Recorded via dashboard button',
+            'user_id' => $user->id,
+            'finger' => now()->setTimezone($timezone),
+            'team_id' => Filament::getTenant()->id,
+            'note' => 'Recorded via dashboard button',
             'created_at' => now(),
             'updated_at' => now(),
         ]);

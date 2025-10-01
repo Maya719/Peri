@@ -14,7 +14,6 @@
         "arbermustafa/filament-google-charts-widgets": "^2.0",
         "aymanalhattami/filament-slim-scrollbar": "^2.1",
         "barryvdh/laravel-dompdf": "^3.1",
-        "coolsam/flatpickr": "^4.1",
         "diogogpinto/filament-auth-ui-enhancer": "^1.0",
         "eightynine/filament-advanced-widgets": "*",
         "eightynine/filament-excel-import": "^3.1",

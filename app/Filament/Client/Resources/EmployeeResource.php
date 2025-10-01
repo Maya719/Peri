@@ -5,7 +5,7 @@ namespace App\Filament\Client\Resources;
 use App\Facades\Helper;
 use App\Models\User;
 use App\Filament\Client\Resources\EmployeeResource\Pages;
-use Coolsam\Flatpickr\Forms\Components\Flatpickr;
+use Filament\Forms\Components\DatePicker;
 use Filament\Resources\Resource;
 use Filament\Forms\Form;
 use Filament\Tables;
@@ -93,9 +93,10 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                     'male' => 'Male',
                                                     'female' => 'Female',
                                                 ]),
-                                            Flatpickr::make('date_of_birth')
+                                            DatePicker::make('date_of_birth')
                                                 ->label('Date Of Birth')
-                                                ->native(false)->closeOnDateSelection()
+                                                ->native(false)
+                                                ->closeOnDateSelection()
                                                 ->required(),
                                             Forms\Components\TextInput::make('blood_group')
                                                 ->label('Blood Group'),
@@ -103,13 +104,15 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('NIC Number'),
                                             Forms\Components\TextInput::make('phone_number')
                                                 ->label('Phone Number'),
-                                            Flatpickr::make('joining_date')
+                                            DatePicker::make('joining_date')
                                                 ->label('Joining Date')
-                                                ->native(false)->closeOnDateSelection()
+                                                ->native(false)
+                                                ->closeOnDateSelection()
                                                 ->required(),
-                                            Flatpickr::make('probation')
+                                            DatePicker::make('probation')
                                                 ->label('Probation End Date')
-                                                ->native(false)->closeOnDateSelection()
+                                                ->native(false)
+                                                ->closeOnDateSelection()
                                                 ->hint('Leave blank if not applicable')
                                                 ->reactive(),
                                             Forms\Components\TextInput::make('emergency_person')
@@ -483,7 +486,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('Resign / Terminate')
                                                 ->helperText('Mark this if the employee has resigned or been terminated')
                                                 ->reactive(),
-                                            Flatpickr::make('resign_date')
+                                            DatePicker::make('resign_date')
                                                 ->label('Resignation / Termination Date')
                                                 ->required()
                                                 ->native(false)->closeOnDateSelection()
