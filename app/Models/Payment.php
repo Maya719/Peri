@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
@@ -43,6 +43,8 @@ class Payment extends Model
      */
     protected $fillable = [
         'model_id',
+        'team_id',
+        'plan_id',
         'model_type',
         'method_id',
         'method_name',
@@ -65,7 +67,6 @@ class Payment extends Model
         'billing_info',
         'created_at',
         'updated_at',
-        'team_id'
     ];
 
     /**

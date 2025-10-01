@@ -44,4 +44,8 @@ class PaymentGateway extends Model implements HasMedia
         'configurations' => 'json',
         'sort_order' => 'integer',
     ];
+    public function products()
+    {
+        return $this->hasMany(Product::class);
+    }
 }

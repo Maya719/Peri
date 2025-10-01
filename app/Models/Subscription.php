@@ -11,6 +11,33 @@ class Subscription extends BaseSubscription
      * @param string $feature
      * @return bool
      */
+
+    protected $fillable = [
+        'subscriber_id',
+        'subscriber_type',
+        'plan_id',
+        'gateway_subscription_id',
+        'slug',
+        'name',
+        'description',
+        'trial_ends_at',
+        'starts_at',
+        'ends_at',
+        'cancels_at',
+        'canceled_at',
+    ];
+
+    protected $casts = [
+        'subscriber_type' => 'string',
+        'auto_renew' => 'boolean',
+        'slug' => 'string',
+        'trial_ends_at' => 'datetime',
+        'starts_at' => 'datetime',
+        'ends_at' => 'datetime',
+        'cancels_at' => 'datetime',
+        'canceled_at' => 'datetime',
+        'deleted_at' => 'datetime',
+    ];
     public function hasFeature(string $featureSlug): bool
     {
         $featureValue = $this->getFeatureValue($featureSlug);

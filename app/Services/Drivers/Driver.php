@@ -19,18 +19,14 @@ abstract class Driver
     public static abstract function process(Payment $payment): false|string;
     public static abstract function verify(Request $request): \Illuminate\Foundation\Application|\Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector;
     public abstract function integration(): array;
-
     public static function cancel($trx)
     {
         $payment = Payment::where('trx', $trx)->where('status', 0)->firstOrFail();
-
         // Update Status
         $payment->status = 2;
         $payment->save();
-
         return redirect($payment->failed_url);
     }
-
     public static function initiate(Request $request)
     {
         $rules = [
@@ -45,28 +41,6 @@ abstract class Driver
             'customer.name' => 'required|string|max:255',
             'customer.email' => 'required|email',
             'customer.mobile' => 'required|string|max:20',
-
-            'shipping_info' => 'nullable|array',
-            'shipping_info.address_one' => 'nullable|string|max:255',
-            'shipping_info.address_two' => 'nullable|string|max:255',
-            'shipping_info.area' => 'nullable|string|max:100',
-            'shipping_info.city' => 'nullable|string|max:100',
-            'shipping_info.sub_city' => 'nullable|string|max:100',
-            'shipping_info.state' => 'nullable|string|max:100',
-            'shipping_info.postcode' => 'nullable|string|max:20',
-            'shipping_info.country' => 'nullable|string|max:100',
-            'shipping_info.others' => 'nullable|string|max:255',
-
-            'billing_info' => 'nullable|array',
-            'billing_info.address_one' => 'nullable|string|max:255',
-            'billing_info.address_two' => 'nullable|string|max:255',
-            'billing_info.area' => 'nullable|string|max:100',
-            'billing_info.city' => 'nullable|string|max:100',
-            'billing_info.sub_city' => 'nullable|string|max:100',
-            'billing_info.state' => 'nullable|string|max:100',
-            'billing_info.postcode' => 'nullable|string|max:20',
-            'billing_info.country' => 'nullable|string|max:100',
-            'billing_info.others' => 'nullable|string|max:255',
         ];
 
         $validator = Validator::make($request->all(), $rules);
@@ -126,7 +100,6 @@ abstract class Driver
             'url' => route('payment.index', $payment->trx),
         ]], 201);
     }
-
     public static function info(Request $request)
     {
         $rules = [
@@ -191,7 +164,6 @@ abstract class Driver
             ]
         ]);
     }
-
     public static function paymentDataUpdate($payment, $isCancel = false)
     {
         if ($payment->status == 0) {
@@ -203,72 +175,4 @@ abstract class Driver
             }
         }
     }
-    public static function subscription($payment_log)
-    {
-        $tenant = Team::find($payment_log->team_id);
-        $plan = Plan::find($payment_log->payment->model_id);
-        $payload = $payment_log->payload;
-        $eventClass = $payload["event"] ?? null;
-        if (!$eventClass || !class_exists($eventClass)) {
-            return;
-        }
-        if ($eventClass === \App\Events\BeforeSubscribePlan::class) {
-            $tenant->newPlanSubscription($plan->slug, $plan);
-            $tenant->planSubscription($plan->slug)->recordFeatureUsage('funds', 0, false);
-            $tenant->planSubscription($plan->slug)->recordFeatureUsage('biometric-devices', 0, false);
-            $tenant->planSubscription($plan->slug)->recordFeatureUsage('shifts', 0, false);
-            $tenant->planSubscription($plan->slug)->recordFeatureUsage('employees', 0, false);
-            $tenant->planSubscription($plan->slug)->recordFeatureUsage('departments', 0, false);
-            $tenant->planSubscription($plan->slug)->recordFeatureUsage('roles', 0, false);
-            Event::dispatch(new $eventClass([
-                "old" => null,
-                "new" => $plan,
-                "subscription" => $tenant->planSubscriptions()->first(),
-                "team_id" => $tenant->id
-            ]));
-            return call_user_func(FilamentSubscriptions::getAfterSubscription(), [
-                "old" => null,
-                "new" => $plan,
-                "subscription" => $tenant->planSubscriptions()->first(),
-                "team_id" => $tenant->id
-            ]);
-        }
-        if ($eventClass === \App\Events\RenewPlan::class) {
-            $currentSubscription = $tenant->planSubscriptions()->first();
-            $currentSubscription->canceled_at =  Carbon::parse($currentSubscription->cancels_at)->addDays(1);
-            $currentSubscription->cancels_at = Carbon::parse($currentSubscription->cancels_at)->addDays(1);
-            $currentSubscription->ends_at =  Carbon::parse($currentSubscription->cancels_at)->addDays(1);
-            $currentSubscription->save();
-            $currentSubscription->renew($plan);
-            Event::dispatch(new $eventClass([
-                "old" => $currentSubscription->plan,
-                "new" => $plan,
-                "subscription" => $currentSubscription,
-                "team_id" => $tenant->id
-            ]));
-            return call_user_func(FilamentSubscriptions::getAfterRenew(), [
-                "old" => $currentSubscription->plan,
-                "new" => $plan,
-                "subscription" => $currentSubscription,
-                "team_id" => $tenant->id
-            ]);
-        }
-        if ($eventClass === \App\Events\BeforeChangePlan::class) {
-            $currentSubscription = $tenant->planSubscriptions()->first();
-            Event::dispatch(new $eventClass([
-                "old" => $currentSubscription->plan,
-                "new" => $plan,
-                "subscription" => $currentSubscription,
-                "team_id" => $tenant->id
-            ]));
-            $currentSubscription->changePlan($plan);
-            return call_user_func(FilamentSubscriptions::getAfterChange(), [
-                "old" => $currentSubscription->plan,
-                "new" => $plan,
-                "subscription" => $currentSubscription,
-                "team_id" => $tenant->id
-            ]);
-        }
-    }
-
 }

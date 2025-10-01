@@ -31,32 +31,9 @@ class FilamentPaymentsServices
             'customer.name' => 'required|string|max:255',
             'customer.email' => 'required|email',
             'customer.mobile' => 'required|string|max:20',
-
-            'shipping_info' => 'nullable|array',
-            'shipping_info.address_one' => 'nullable|string|max:255',
-            'shipping_info.address_two' => 'nullable|string|max:255',
-            'shipping_info.area' => 'nullable|string|max:100',
-            'shipping_info.city' => 'nullable|string|max:100',
-            'shipping_info.sub_city' => 'nullable|string|max:100',
-            'shipping_info.state' => 'nullable|string|max:100',
-            'shipping_info.postcode' => 'nullable|string|max:20',
-            'shipping_info.country' => 'nullable|string|max:100',
-            'shipping_info.others' => 'nullable|string|max:255',
-
-            'billing_info' => 'nullable|array',
-            'billing_info.address_one' => 'nullable|string|max:255',
-            'billing_info.address_two' => 'nullable|string|max:255',
-            'billing_info.area' => 'nullable|string|max:100',
-            'billing_info.city' => 'nullable|string|max:100',
-            'billing_info.sub_city' => 'nullable|string|max:100',
-            'billing_info.state' => 'nullable|string|max:100',
-            'billing_info.postcode' => 'nullable|string|max:20',
-            'billing_info.country' => 'nullable|string|max:100',
-            'billing_info.others' => 'nullable|string|max:255',
         ];
 
         $validator = Validator::make($data->toArray(), $rules);
-
         // Check if validation fails
         if ($validator->fails()) {
             if ($json) {
@@ -86,8 +63,6 @@ class FilamentPaymentsServices
             'success_url' => $validated['success_url'],
             'failed_url' => $validated['cancel_url'],
             'customer' => $validated['customer'],
-            'shipping_info' => $validated['shipping_info'] ?? [],
-            'billing_info' => $validated['billing_info'] ?? [],
         ]);
         if ($json) {
             return response()->json([

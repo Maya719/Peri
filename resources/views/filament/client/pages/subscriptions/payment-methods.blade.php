@@ -46,8 +46,7 @@
                                     Set as Default
                                 </x-filament::button>
                             @endif
-
-                            {{ ($this->openDeleteModal)(['record' => $paymentMethod['id']]) }}
+                            {{ $this->delete()->arguments(['payment_method_id' => $paymentMethod['id']]) }}
                         </div>
                     </a>
                 @endforeach

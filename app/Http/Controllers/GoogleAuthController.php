@@ -18,7 +18,7 @@ class GoogleAuthController extends Controller
         config([
             'services.google.client_id' => $settings["google_client_id"],
             'services.google.client_secret' => $settings["google_client_secret"],
-            'services.google.redirect' => 'https://peri2.airnet-technologies.com/auth/google/callback',
+            'services.google.redirect' => 'https://peri.airnet-technologies.com/auth/google/callback',
         ]);
     }
     public function redirect()

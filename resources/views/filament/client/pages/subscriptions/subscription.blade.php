@@ -66,7 +66,7 @@
                         <div class="flex items-center gap-3">
                             {{ $this->autoRenew }}
 
-                            @if(!$this->currentSubscription->active())
+                            @if(!$this->currentSubscription->active() && !$this->currentSubscription->auto_renew)
                                 <x-filament::button
                                     color="primary"
                                     icon="heroicon-s-arrow-path"

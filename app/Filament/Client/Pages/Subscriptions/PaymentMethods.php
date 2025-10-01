@@ -16,8 +16,6 @@ use Illuminate\Support\Facades\Auth;
 class PaymentMethods extends Page implements HasActions
 {
     use \Filament\Actions\Concerns\InteractsWithActions;
-    protected static ?string $navigationIcon = 'heroicon-o-document-text';
-
     protected static string $view = 'filament.client.pages.subscriptions.payment-methods';
     protected static string|array $withoutRouteMiddleware = VerifyBillableIsSubscribed::class;
 
@@ -73,32 +71,23 @@ class PaymentMethods extends Page implements HasActions
                 ->url(AddPaymentMethod::getUrl()),
         ];
     }
-    public function openDeleteModal(): Action
+    public function delete(): Action
     {
-        return Action::make('deletePaymentMethod')
-            ->label('Delete')
+        return Action::make('delete')
+            ->label(fn() => 'Delete')
             ->requiresConfirmation()
             ->modalHeading('Delete Payment Method')
-            ->modalSubheading('Are you sure you want to delete this payment method? This action cannot be undone.')
-            ->icon('heroicon-o-trash')
-            ->color('danger')
+            ->modalDescription('Are you sure you want to delete this payment method? This action cannot be undone.')
+            ->modalSubmitActionLabel('Delete')
+            ->modalCancelActionLabel('Cancel')
             ->action(function (array $arguments) {
-                $paymentMethodId = $arguments['record'];
-
+                $paymentMethodId = $arguments['payment_method_id'];
                 $stripe = new \Stripe\StripeClient(app(StripeV3::class)->secretKey());
-
                 try {
-                    $stripe->paymentMethods->detach($paymentMethodId);
-                    // Get customer
-                    $customer = $stripe->customers->retrieve($this->customer_id);
-                    $defaultPaymentMethodId = $customer->invoice_settings->default_payment_method;
+                    StripeV3::detachPaymentMethod($paymentMethodId);
+                    $defaultPaymentMethodId = StripeV3::getDefaultPaymentMethodId($this->customer_id);
                     PaymentMethod::where('stripe_payment_method_id', $paymentMethodId)->delete();
-                    // Get all payment methods
-                    $methods = $stripe->paymentMethods->all([
-                        'customer' => $this->customer_id,
-                        'type' => 'card',
-                    ]);
-
+                    $methods = StripeV3::getAllPaymentMethods($this->customer_id);
                     $this->payment_methods = collect($methods->data)->map(function ($method) use ($defaultPaymentMethodId) {
                         return [
                             'id' => $method->id,
@@ -120,7 +109,10 @@ class PaymentMethods extends Page implements HasActions
                         ->danger()
                         ->send();
                 }
-            });
+            })
+            ->color(fn() => 'danger')
+            ->icon(fn() => 'heroicon-o-trash')
+            ->tooltip(fn() => 'Delete Payment Method');
     }
     public function setDefault($payment_method_id)
     {

@@ -57,6 +57,9 @@ class FilamentPaymentsServiceProvider extends ServiceProvider
             $plan = $data['new'];             // App\Models\Plan
             $team = Team::find($data['team_id']); // subscriber
             $team->newPlanSubscription('main', $plan);
+            $sub = $team->planSubscriptions()->first();
+            $sub->gateway_subscription_id = $data['gateway_subscription'];
+            $sub->save();
             Notification::make()
                 ->title('Subscription Successfully')
                 ->success()
@@ -90,28 +93,12 @@ class FilamentPaymentsServiceProvider extends ServiceProvider
                     ->currency('USD')
                     ->amount($data['new']->price)
                     ->details('Subscription Payment')
-                    ->success_url(url('/client'))
-                    ->cancel_url(url('/client'))
+                    ->success_url(url('/success'))
+                    ->cancel_url(url('/cancel'))
                     ->customer(
                         PaymentCustomer::make(Auth::user()->name)
                             ->email(Auth::user()->email)
                             ->mobile(Auth::user()->phone_number ??'+92 222 222 2222')
-                    )
-                    ->billing_info(
-                        PaymentBillingInfo::make('123 Main St')
-                            ->area('Downtown')
-                            ->city('Cairo')
-                            ->state('Cairo')
-                            ->postcode('12345')
-                            ->country('EG')
-                    )
-                    ->shipping_info(
-                        PaymentShippingInfo::make('123 Main St')
-                            ->area('Downtown')
-                            ->city('Cairo')
-                            ->state('Cairo')
-                            ->postcode('12345')
-                            ->country('EG')
                     )
             )
         );

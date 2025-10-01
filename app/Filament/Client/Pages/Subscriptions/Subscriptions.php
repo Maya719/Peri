@@ -7,6 +7,7 @@ use App\Events\BeforeRenewPlan;
 use App\Events\BeforeSubscribePlan;
 use App\Facades\FilamentSubscriptions;
 use App\Http\Middleware\VerifyBillableIsSubscribed;
+use App\Models\PaymentGateway;
 use App\Models\Plan;
 use Filament\Facades\Filament;
 use Filament\Actions\Action;
@@ -68,6 +69,15 @@ class Subscriptions extends Page
                 $this->currentSubscription = $this->getActiveSubscription();
                 $this->currentPlan = $this->getCurrentPlan();
                 $this->isFreePlan = $this->currentPlan->isFree();
+                $subscription_id = $this->currentSubscription->gateway_subscription_id;
+                $default_gateway = $this->currentSubscription->default_gateway;
+                $gateway = PaymentGateway::find($default_gateway);
+                $class = "App\\Services\\Drivers\\{$gateway->alias}";
+                if ($status === 'enabled') {
+                    $class::autoRenewEnable($subscription_id);
+                } else {
+                    $class::autoRenewDisable($subscription_id);
+                }
                 Notification::make()
                     ->title('Auto-Renew ' . ucfirst($status))
                     ->body("Auto-renew has been {$status} for your current subscription.")
@@ -116,6 +126,9 @@ class Subscriptions extends Page
     }
     public function subscribe(int $planId, bool $main = false)
     {
+        if (Filament::getTenant()->payment_methods()->count() == 0 || Filament::getTenant()->payment_methods()->first()?->stripe_payment_method_id == null) {
+            return redirect(PaymentMethods::getUrl());
+        }
         if (!$planId) {
             return Notification::make()
                 ->title('Invalid Plan')
@@ -148,6 +161,7 @@ class Subscriptions extends Page
                 "team_id" => Filament::getTenant()->id
             ]);
         }
+
         Event::dispatch(new BeforeSubscribePlan([
             "old" => null,
             "new" => $plan,

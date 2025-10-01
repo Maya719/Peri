@@ -17,11 +17,15 @@ Route::name('payment.')->prefix('pay')->withoutMiddleware([\App\Http\Middleware\
     Route::post('initiate', [PaymentController::class, 'initiate'])->name('initiate');
     Route::get('info', [PaymentController::class, 'info'])->name('info');
 });
-Route::post('/payment-methods/store', [PaymentController::class, 'store'])
-    ->name('filament.client.payment-methods.store');
 
 Route::any('pay/callback/{gateway}', [PaymentController::class, 'verify'])->name('payments.callback');
-
+Route::any('/success', [PaymentController::class, 'success'])->name('payments.success');
+/**
+ *
+ *  Payment Intent Routes (Stripe)
+ *
+ */
+Route::get('/payments/subscription/{gateway}/callback/', [PaymentController::class, 'verify'])->name('subscription.verify');
 Route::get('/', [Home::class, 'index'])->name('home.index');
 Route::get('/sync', [SyncController::class, 'index'])->name('sync.index');
 Route::get('/privacy-policy', [Home::class, 'privacy']);
@@ -35,10 +39,12 @@ Route::get('auth/google/callback', [GoogleAuthController::class, 'callback']);
 Route::get('/payroll/{payroll}/download', [PayrollDownloadController::class, 'download'])->name('payroll.download');
 Route::get('/payslip/{payroll}', [PayslipController::class, 'show'])->name('payslip.show');
 
-Route::get('/offcycle-payroll/{offCyclePayroll}/download-pdf', [PayrollDownloadController::class, 'downloadOffCycle'])->name('offcycle-payroll.download_pdf');
+//Route::get('/offcycle-payroll/{offCyclePayroll}/download-pdf', [PayrollDownloadController::class, 'downloadOffCycle'])->name('offcycle-payroll.download_pdf');
 Route::get('/admin/preview/{id}', function ($id) {
     $record = EmailTemplate::findOrFail($id);
     return view('filament.pages.emails.preview', [
         'content' => html_entity_decode($record->body),
     ]);
 })->name('template.preview');
+
+Route::post('/paypal/subscription/approved', [PaymentController::class, 'paypalSubscriptionApproved'])->name('paypal.subscription.approved');

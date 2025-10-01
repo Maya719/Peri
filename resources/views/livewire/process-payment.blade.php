@@ -46,7 +46,6 @@
                             align-items: center;
                         }
                     </style>
-
                     <x-filament::section class="mt-6 mb-3">
                         <x-slot name="heading">
                             Order Summary
@@ -55,17 +54,14 @@
                         <div class="space-y-4 text-sm">
                             <div class="flex items-center justify-between">
                                 <span class="text-gray-600 dark:text-gray-300">Plan</span>
-                                <span class="text-gray-800 dark:text-white">{{  $this->planName }}</span>
+                                <span class="text-gray-800 dark:text-white">{{ $this->planName }}</span>
                             </div>
                             <div class="flex items-center justify-between">
                                 <span class="text-gray-600 dark:text-gray-300">Taxes & Fees</span>
                                 <span class="text-gray-800 dark:text-white">US$
                                     {{ number_format($taxesFees, 2) }}</span>
                             </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-gray-600 dark:text-gray-300">Expiration Date</span>
-                                <span class="text-gray-800 dark:text-white">{{ $this->expirationDate }}</span>
-                            </div>
+
                             <div
                                 class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700 font-semibold text-lg">
                                 <span class="text-gray-800 dark:text-white">Total</span>
@@ -74,9 +70,9 @@
                             </div>
 
                             {{-- <div class="flex items-center justify-between mt-4">
-                                <span class="text-gray-600 dark:text-gray-300">Coupon code</span>
-                                <x-filament::link wire:click="$set('showCouponInput', true)">Add</x-filament::link>
-                            </div> --}}
+                                    <span class="text-gray-600 dark:text-gray-300">Coupon code</span>
+                                    <x-filament::link wire:click="$set('showCouponInput', true)">Add</x-filament::link>
+                                </div> --}}
 
                             @if ($this->showCouponInput ?? false)
                                 <div class="mt-2">
@@ -89,7 +85,6 @@
                         </div>
                     </x-filament::section>
                     {{ $this->form }}
-
                     <div
                         class="text-xs text-gray-500 dark:text-gray-400 mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                         By checking out, you agree with our
@@ -105,11 +100,14 @@
                         <x-filament::button color="gray" outlined>
                             Cancel
                         </x-filament::button>
-                        <x-filament::button type="submit">
-                            Complete payment
-                        </x-filament::button>
+                        @if ($this->selectedGateway === 'StripeV3')
+                            <x-filament::button type="submit">
+                                Complete payment
+                            </x-filament::button>
+                        @endif
                     </div>
                 </form>
             </x-filament::section>
         </div>
+
     </div>

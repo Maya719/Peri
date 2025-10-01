@@ -34,6 +34,7 @@ class RegisterTeam extends RegisterTenant
             ->submit('register');
     }
 
+
     public function form(Form $form): Form
     {
         return $form
@@ -44,7 +45,7 @@ class RegisterTeam extends RegisterTenant
                     ->disk('public')
                     ->directory('uploads/companies/temp')
                     ->visibility('public')
-                    ->maxSize(2048) // 2MB
+                    ->maxSize(2048)
                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                     ->deletable()
                     ->downloadable()
@@ -54,27 +55,32 @@ class RegisterTeam extends RegisterTenant
                 TextInput::make('name')
                     ->label('Company Name')
                     ->required()
-                    ->unique(ignoreRecord: true) // when editing, ignore current record
+                    ->unique(ignoreRecord: true)
                     ->validationMessages([
                         'unique' => 'This company name is already taken.',
                     ]),
 
                 Select::make('country_id')
                     ->label('Country')
-                    ->options(fn() => Country::pluck('name', 'id')->toArray())
+                    ->options(fn () => Country::pluck('name', 'id')->toArray())
                     ->searchable()
                     ->live()
                     ->required(),
 
                 Select::make('timezone')
                     ->label('Timezone')
-                    ->options(
-                        collect(DateTimeZone::listIdentifiers())
-                            ->mapWithKeys(fn($tz) => [$tz => $tz])
-                            ->toArray()
-                    )
+                    ->options(function (callable $get) {
+                        $country = Country::find($get('country_id'));
+                        if (! $country || ! $country->code) {
+                            return [];
+                        }
+                        // Get timezones for the given country code (e.g. "US", "PK")
+                        $timezones = DateTimeZone::listIdentifiers(DateTimeZone::PER_COUNTRY, $country->code);
+                        return collect($timezones)->mapWithKeys(fn ($tz) => [$tz => $tz])->toArray();
+                    })
                     ->searchable()
                     ->required()
+                    ->reactive(),
             ]);
     }
 
@@ -87,7 +93,7 @@ class RegisterTeam extends RegisterTenant
             'team_id' => $team->id,
             'is_default' => true,
         ]);
-        $this->subscribeFreeTrail($team);
+//        $this->subscribeFreeTrail($team);
 
         setPermissionsTeamId($team->id);
         $team->members()->attach(Auth::id());

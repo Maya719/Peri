@@ -15,6 +15,13 @@ class EmailVerificationPrompt extends BaseEmailVerificationPrompt
 {
     use HasCustomLayout;
     protected static string $view = 'filament.client.pages.auth.email-verification-prompt';
+    public function mount(): void
+    {
+        if ($this->getVerifiable()->hasVerifiedEmail()) {
+            redirect()->intended(Filament::getUrl());
+        }
+        $this->sendEmailVerificationNotification($this->getVerifiable());
+    }
     protected function sendEmailVerificationNotification(MustVerifyEmail $user): void
     {
         if ($user->hasVerifiedEmail()) {

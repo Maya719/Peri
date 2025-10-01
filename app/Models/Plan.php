@@ -26,4 +26,8 @@ class Plan extends BasePlan
         'sort_order',
         'free_trial',
     ];
+    public function products()
+    {
+        return $this->hasMany(Product::class);
+    }
 }
