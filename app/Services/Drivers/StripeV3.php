@@ -92,6 +92,7 @@ class StripeV3 extends Driver
     }
     public static function verify(Request $request): \Illuminate\Foundation\Application|\Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
     {
+        dd($request->all());
         $StripeAcc = \App\Models\PaymentGateway::where('alias', 'StripeV3')->orderBy('id', 'desc')->firstOrFail();
         $gateway_parameter = $StripeAcc->gateway_parameters;
         $invoice_id = $request->get('invoice');
