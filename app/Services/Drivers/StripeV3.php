@@ -98,10 +98,11 @@ class StripeV3 extends Driver
         $subscription = $request->get('subscription');
         \Stripe\Stripe::setApiKey($gateway_parameter['secret_key']);
         $payment = Payment::where('method_code', $invoice_id)->where('status', 0)->firstOrFail();
+        
         try {
             $payment_log = PaymentLog::where('payment_id', $payment->id)->firstOrFail();
             $response = $payment_log->response;
-            if ($response["status"] == 'active')
+            if ($response["status"] == 'complete' || $response["status"] == 'active')
             {
                 self::paymentDataUpdate($payment);
                 $paymentLog = PaymentLog::where('payment_id', $payment->id)->where('team_id', $payment->team_id)->where('status',0)->first();
