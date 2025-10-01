@@ -4,15 +4,18 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
     public function up(): void
     {
         Schema::table('subscriptions', function (Blueprint $table) {
-            $table->foreignId('default_gateway')->constrained('payment_gateways')->cascadeOnDelete->after('plan_id')->nullable();
+            $table->foreignId('default_gateway')
+                ->nullable()
+                ->after('plan_id')
+                ->constrained('payment_gateways')
+                ->cascadeOnDelete();
             $table->string('gateway_subscription_id')->nullable()->after('default_gateway');
         });
     }
