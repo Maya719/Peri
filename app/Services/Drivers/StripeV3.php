@@ -105,9 +105,8 @@ class StripeV3 extends Driver
             if ($response["status"] == 'complete' || $response["status"] == 'active')
             {
                 self::paymentDataUpdate($payment);
-                $paymentLog = PaymentLog::where('payment_id', $payment->id)->where('team_id', $payment->team_id)->where('status',0)->first();
-                $paymentLog->status = 1;
-                $paymentLog->save();
+                $payment_log->status = 1;
+                $payment_log->save();
                 return redirect($payment->success_url.'?trx='.$payment->trx.'&subscription='.$subscription);
             }
         } catch (\Exception $e) {
