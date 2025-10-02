@@ -67,7 +67,7 @@ trait HasPayrollCalculations
 
         if ($statutoryAdjustment == 0) return $grossSalary; // Avoid division by zero
 
-        return $grossSalary / $statutoryAdjustment;
+        return round($grossSalary / $statutoryAdjustment);
     }
 
     private function getPreviousPayrollData(): array
