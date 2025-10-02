@@ -99,9 +99,8 @@ trait HasPayrollCalculations
 
         $projectedBase = $this->getBaseSalary() * $monthsRemaining;
         $projectedAnnualTaxableBase = $previousData['base_sum'] + $projectedBase;
-        $totalYTDEarnings =  $this->getTotalTaxableEarnings();
-        $totalYTDDeductions = $this->getTotalNonTaxableDeductions();
-
+        $totalYTDEarnings = $previousData['taxable_earnings_sum'] + $this->getTotalTaxableEarnings();
+        $totalYTDDeductions = $previousData['non_taxable_deductions_sum'] + $this->getTotalNonTaxableDeductions();
         return $projectedAnnualTaxableBase + $totalYTDEarnings - $totalYTDDeductions;
     }
 
