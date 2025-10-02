@@ -67,7 +67,7 @@ trait HasPayrollCalculations
 
         if ($statutoryAdjustment == 0) return $grossSalary; // Avoid division by zero
 
-        return round($grossSalary / $statutoryAdjustment);
+        return $grossSalary / $statutoryAdjustment;
     }
 
     private function getPreviousPayrollData(): array
@@ -99,9 +99,8 @@ trait HasPayrollCalculations
 
         $projectedBase = $this->getBaseSalary() * $monthsRemaining;
         $projectedAnnualTaxableBase = $previousData['base_sum'] + $projectedBase;
-
-        $totalYTDEarnings = $previousData['taxable_earnings_sum'] + $this->getTotalTaxableEarnings();
-        $totalYTDDeductions = $previousData['non_taxable_deductions_sum'] + $this->getTotalNonTaxableDeductions();
+        $totalYTDEarnings =  $this->getTotalTaxableEarnings();
+        $totalYTDDeductions = $this->getTotalNonTaxableDeductions();
 
         return $projectedAnnualTaxableBase + $totalYTDEarnings - $totalYTDDeductions;
     }

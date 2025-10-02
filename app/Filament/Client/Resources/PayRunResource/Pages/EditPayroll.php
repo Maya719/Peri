@@ -499,7 +499,7 @@ class EditPayroll extends Page implements HasForms
 
                                 Placeholder::make('annula_taxable_base')
                                     ->label('Annual Taxable Base')
-                                    ->hintIcon('heroicon-m-question-mark-circle', tooltip: 'Annual Taxable Base = Sum of Previous Periods Taxable Base of This FY + This Period Annual Expected + Total Taxable Earnings - Total Taxable Deductions')
+                                    ->hintIcon('heroicon-m-question-mark-circle', tooltip: 'Annual Taxable Base = Sum of Previous Periods Taxable Base of This FY + This Period Annual Expected + Total Taxable Earnings - Total Non Taxable Deductions')
                                     ->content(fn() => $currency . ' ' . number_format($this->getAnnualTaxableBase(), 0)),
 
                                 Placeholder::make('tax_slabs_lies')
