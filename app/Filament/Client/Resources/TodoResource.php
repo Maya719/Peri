@@ -28,11 +28,10 @@ class TodoResource extends Resource
     protected static ?string $model = Todo::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
-
-    protected static ?string $navigationLabel = 'Notpad';
-    protected static ?string $modelLabel = 'Notpad';
-    protected static ?string $title = 'Notpad';
-    protected ?string $heading = 'Notpad';
+    protected static ?string $navigationLabel = 'Notepad';
+    protected static ?string $modelLabel = 'Notepad';
+    protected static ?string $title = 'Notepad';
+    protected ?string $heading = 'Notepad';
     protected static ?string $navigationBadgeTooltip = 'Pending Tasks';
     protected static ?int $navigationSort = 4;
     public static function getActiveNavigationIcon(): string|Htmlable|null
@@ -69,38 +68,11 @@ class TodoResource extends Resource
         return $table
             ->recordUrl(null)
             ->columns([
-                Split::make([
-                    TextColumn::make('task'),
-                    TextColumn::make('deadline')
-                        ->date(),
-                    TextColumn::make('is_completed')
-                        ->label('Status')
-                        ->badge()
-                        ->formatStateUsing(fn(string $state): string => $state ? 'Completed' : 'Pending')
-                        ->color(fn(string $state): string => $state ? 'success' : 'warning'),
-                ]),
-                Panel::make([
-                    Stack::make([
-                        TextColumn::make('description')
-                            ->html()
-                            ->wrap()
-                            ->extraAttributes(['class' => 'whitespace-pre-wrap'])
-                            ->formatStateUsing(fn(string $state): string => nl2br($state)),
-                    ]),
-                ])->collapsible(),
+               
             ])
             ->defaultSort('is_completed', 'asc')
             ->actions([
-                ActionGroup::make([
-                    Action::make('Complete')
-                        ->action(fn(Todo $record) => $record->update(['is_completed' => true]))
-                        ->requiresConfirmation()
-                        ->color('success')
-                        ->icon('heroicon-o-check-circle')
-                        ->visible(fn(Todo $record) => ! $record->is_completed),
-                    Tables\Actions\EditAction::make()->color('info'),
-                    Tables\Actions\DeleteAction::make(),
-                ])->iconButton()
+               
             ])
             ->actionsColumnLabel('Actions');
     }
@@ -118,4 +90,5 @@ class TodoResource extends Resource
             'edit' => Pages\EditTodo::route('/{record}/edit'),
         ];
     }
+    
 }
