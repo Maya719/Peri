@@ -39,6 +39,7 @@ class RoleResource extends Resource implements HasKnowledgeBase
             KnowledgeBase::model()::find('roles.recommended'),
         ];
     }
+    
     public static function getNavigationBadge(): ?string
     {
         return (string) static::getEloquentQuery()

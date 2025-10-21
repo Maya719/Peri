@@ -19,8 +19,6 @@ class SalaryComponent extends Model
         'tax_status',
         'is_one_time_deduction',
         'is_active',
-        // 'user_id',
-        // 'department_id',
         'apply_to_all',
     ];
 

@@ -25,7 +25,6 @@ class SmtpConfig extends Page implements Forms\Contracts\HasForms
     {
         $this->smtp = Setting::getByType('smtp_config');
     }
-
     protected function getFormSchema(): array
     {
         return [

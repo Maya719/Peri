@@ -31,7 +31,7 @@ class PaymentHistory extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->query(Filament::getTenant()->payments()->getQuery())
+            ->query(Filament::getTenant()->payments()->where('status', 1)->getQuery())
             ->columns([
                 TextColumn::make('trx')
                     ->label('Transaction ID')

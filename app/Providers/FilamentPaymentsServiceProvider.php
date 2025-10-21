@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Events\AfterChangePlan;
 use App\Events\BeforeChangePlan;
+use App\Events\BeforeRenewPlan;
 use App\Events\RenewPlan;
 use App\Events\BeforeSubscribePlan;
 use Carbon\Carbon;
@@ -47,7 +48,7 @@ class FilamentPaymentsServiceProvider extends ServiceProvider
         });
 
         FilamentSubscriptions::beforeRenew(function ($data) {
-            $this->PaymentPage($data, RenewPlan::class);
+            $this->PaymentPage($data, BeforeRenewPlan::class);
         });
         FilamentSubscriptions::beforeChange(function ($data) {
             $this->PaymentPage($data, BeforeChangePlan::class);
@@ -82,6 +83,7 @@ class FilamentPaymentsServiceProvider extends ServiceProvider
             return redirect()->to($this->currentPanel);
         });
     }
+
     private function PaymentPage($data, $event)
     {
         return redirect()->to(

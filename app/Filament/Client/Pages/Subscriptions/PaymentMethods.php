@@ -18,7 +18,6 @@ class PaymentMethods extends Page implements HasActions
     use \Filament\Actions\Concerns\InteractsWithActions;
     protected static string $view = 'filament.client.pages.subscriptions.payment-methods';
     protected static string|array $withoutRouteMiddleware = VerifyBillableIsSubscribed::class;
-
     protected static ?string $navigationGroup = 'Subscription';
     public $customer_id;
     public $payment_methods = [];
@@ -35,7 +34,6 @@ class PaymentMethods extends Page implements HasActions
     private function loadPaymentMethods(): void
     {
         $this->customer_id = Filament::getTenant()->payment_methods()->first()?->stripe_customer_id;
-
         if (!$this->customer_id) {
             $this->payment_methods = [];
             return;
@@ -44,12 +42,10 @@ class PaymentMethods extends Page implements HasActions
         $stripe = new \Stripe\StripeClient(app(StripeV3::class)->secretKey());
         $customer = $stripe->customers->retrieve($this->customer_id);
         $defaultPaymentMethodId = $customer->invoice_settings->default_payment_method;
-
         $methods = $stripe->paymentMethods->all([
             'customer' => $this->customer_id,
             'type' => 'card',
         ]);
-
         $this->payment_methods = collect($methods->data)->map(function ($method) use ($defaultPaymentMethodId) {
             return [
                 'id' => $method->id,

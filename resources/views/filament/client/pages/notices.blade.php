@@ -1,100 +1,87 @@
 @php
-    use Illuminate\Support\Facades\Storage;
     use Filament\Facades\Filament;
-    if (Auth::user()->hasRole('Admin')) {
-        $notices = Filament::getTenant()->notices()->where('is_active', true)->get();
-    }else{
-        $notices = Filament::getTenant()->notices()->where('is_active', true)->where('name', '!=', 'Subscription Expiring Soon')->get();
-    }
+    use Illuminate\Support\Facades\Auth;
+
+    $notices = Auth::user()->hasRole('Admin')
+        ? Filament::getTenant()->notices()->where('is_active', true)->get()
+        : Filament::getTenant()
+            ->notices()
+            ->where('is_active', true)
+            ->where('name', '!=', 'Subscription Expiring Soon')
+            ->get();
+
+    $color = $notices->isEmpty() ? 'gray' : 'primary';
 @endphp
 
-<div class="sticky top-0 z-999">
-    @foreach ($notices as $notice)
-        @php
-            $canBeClosed = $notice->content['can_be_closed_by_user'] ?? false;
-            $icon = $notice->icon ?? 'heroicon-m-megaphone';
-            $iconColor = $notice->content['IconColor'] ?? '#FFFFFF';
-            $textColor = $notice->content['TextColor'] ?? '#FFFFFF';
-            $backgroundColor = $notice->content['BackgroundColor'] ?? '#D97706';
-            $contentType = $notice->content['type'] ?? 'text';
-            $linkUrl = $notice->content['link_url'] ?? '#';
-            $documentPath = $notice->content['document'] ?? null;
-            $hasTextContent = $contentType === 'text' && !empty($notice->content['body']);
-            $windowSettings = 'width=800,height=600,scrollbars=yes,resizable=yes,left=100,top=100';
-        @endphp
+<div class="flex items-center !gap-0">
+    <x-filament::icon-button
+    color="gray"
+    icon="heroicon-o-megaphone"
+    icon-size="lg"
+    class="fi-topbar-database-notifications-btn"
+    x-on:click="$dispatch('open-modal', { id: 'notice-list-modal' })"
+/>
+</div>
 
-        <div x-data="{
-            show: true,
-            storageKey: 'my-notices::closed',
-            noticeId: '{{ $notice->id }}',
-            init() { this.hasBeenClosedByUser(); },
-            close(e) {
-                e.stopPropagation();
-                this.show = false;
-                let stored = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
-                stored.push(this.noticeId);
-                localStorage.setItem(this.storageKey, JSON.stringify(stored));
-            },
-            hasBeenClosedByUser() {
-                let stored = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
-                this.show = !stored.includes(this.noticeId);
-            },
-            handleBannerClick(e) {
-                if (e.target.closest('.close-button')) {
-                    return; // Don't do anything if we clicked the close button
-                }
-        
-                @if ($contentType === 'link') window.open('{{ $linkUrl }}', 'noticeWindow', '{{ $windowSettings }}');
-                @elseif ($contentType === 'file' && $documentPath)
-                    window.open('{{ Storage::url($documentPath) }}', 'noticeWindow', '{{ $windowSettings }}');
-                @elseif ($hasTextContent)
-                    $dispatch('open-modal', { id: 'notice-content-{{ $notice->id }}' }); @endif
-            }
-        }" x-show="show" x-cloak>
-            <div @click="handleBannerClick($event)" style="cursor: pointer; background-color: {{ $backgroundColor }};"
-                class="p-4 mb-4">
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center gap-2">
-                        <x-filament::icon alias="notice::icon" :icon="$icon" style="color: {{ $iconColor }}"
-                            class="h-6 w-6 mr-2 text-white" />
-                        <div style="color: {{ $textColor }}; text-decoration: underline;">
-                            {!! $notice->name ?? '' !!}
-                        </div>
+
+<x-filament::modal id="notice-list-modal" width="2xl">
+    <x-slot name="heading">Active Notices</x-slot>
+
+    <div class="space-y-4 max-h-[70vh] overflow-y-auto overflow-x-hidden">
+        @foreach ($notices as $notice)
+            <div class="p-4 rounded-lg w-full"
+                style="background-color: {{ $notice->content['BackgroundColor'] ?? '#D97706' }}; overflow-x:hidden;">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <x-filament::icon :icon="$notice->icon ?? 'heroicon-o-megaphone'"
+                            style="color: {{ $notice->content['IconColor'] ?? '#FFFFFF' }}" class="h-5 w-5 shrink-0" />
+                        <span class="truncate" style="color: {{ $notice->content['TextColor'] ?? '#FFFFFF' }}">
+                            {!! $notice->name !!}
+                        </span>
                     </div>
 
-                    <div class="flex items-center gap-3">
-                        {{-- Close Icon --}}
-                        @if ($canBeClosed)
-                            <x-filament::icon @click="close($event)" alias="notice::close" icon="heroicon-m-x-mark"
-                                class="h-6 w-6 text-white cursor-pointer hover:opacity-75 close-button" />
+                    @php
+                        $contentType = $notice->content['type'] ?? 'text';
+                        $linkUrl = $notice->content['link_url'] ?? null;
+                        $documentPath = $notice->content['document'] ?? null;
+                    @endphp
+
+                    <div class="flex-shrink-0">
+                        @if ($contentType === 'link' && $linkUrl)
+                            <x-filament::button color="primary" tag="a" href="{{ $linkUrl }}"
+                                target="_blank">
+                                Open Link
+                            </x-filament::button>
+                        @elseif ($contentType === 'file' && $documentPath)
+                            <x-filament::button color="primary" tag="a" href="{{ Storage::url($documentPath) }}"
+                                target="_blank">
+                                View File
+                            </x-filament::button>
+                        @elseif (!empty($notice->content['body']))
+                            <x-filament::button color="primary"
+                                x-on:click="$dispatch('open-modal', { id: 'notice-content-{{ $notice->id }}' })">
+                                Read
+                            </x-filament::button>
                         @endif
                     </div>
                 </div>
             </div>
-        </div>
-    @endforeach
-</div>
+        @endforeach
+    </div>
+</x-filament::modal>
 
-{{-- Filament Modals (outside the loop to avoid nesting issues) --}}
 @foreach ($notices as $notice)
-    @php
-        $contentType = $notice->content['type'] ?? 'text';
-        $hasTextContent = $contentType === 'text' && !empty($notice->content['body']);
-    @endphp
-
-    @if ($hasTextContent)
+    @if (!empty($notice->content['body']))
         <x-filament::modal id="notice-content-{{ $notice->id }}" width="2xl">
-            <x-slot name="heading">
-                {{ $notice->name ?? 'Notice Content' }}
-            </x-slot>
+            <x-slot name="heading">{{ $notice->name ?? 'Notice' }}</x-slot>
 
-            <div class="prose max-h-[60vh] overflow-y-auto text-gray-700">
-                {!! $notice->content['body'] ?? '' !!}
+            <div class="prose max-h-[60vh] overflow-y-auto overflow-x-hidden">
+                {!! $notice->content['body'] !!}
             </div>
 
             <x-slot name="footer">
-                <x-filament::button @click="$dispatch('close-modal', { id: 'notice-content-{{ $notice->id }}' })"
-                    color="secondary">
+                <x-filament::button color="secondary"
+                    x-on:click="$dispatch('close-modal', { id: 'notice-content-{{ $notice->id }}' })">
                     Close
                 </x-filament::button>
             </x-slot>

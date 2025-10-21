@@ -29,7 +29,6 @@
         "laravel/tinker": "^2.10.1",
         "laravelcm/laravel-subscriptions": "^1.5",
         "malzariey/filament-daterangepicker-filter": "^3.4",
-        "mohamedsabil83/filament-forms-tinyeditor": "^2.4",
         "pxlrbt/filament-excel": "^2.4",
         "spatie/laravel-permission": "^6.18",
         "stripe/stripe-php": "^17.3"

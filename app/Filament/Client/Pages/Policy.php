@@ -22,8 +22,6 @@ class Policy extends Page implements HasKnowledgeBase
     use Forms\Concerns\InteractsWithForms;
 
     public array $data = [];
-
-
     protected static ?string $navigationLabel = 'Attendance Policies';
     protected static string $view = 'filament.client.pages.policy';
     protected static ?string $navigationGroup = 'Settings';
@@ -33,11 +31,9 @@ class Policy extends Page implements HasKnowledgeBase
     public static function shouldRegisterNavigation(): bool
     {
         $user = Auth::user();
-
         if (!$user) {
             return false;
         }
-
         return $user->hasRole('Admin') && Helper::has_feature('attendance-policies');
     }
 

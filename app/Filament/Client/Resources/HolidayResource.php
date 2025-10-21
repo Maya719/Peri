@@ -22,12 +22,10 @@ use Guava\FilamentKnowledgeBase\Facades\KnowledgeBase;
 class HolidayResource extends Resource implements HasKnowledgeBase
 {
     protected static ?string $model = Holiday::class;
-
     protected static ?string $navigationLabel = 'Plan Holidays';
     protected static ?string $navigationGroup = 'Attendance Management';
     protected static ?int $navigationSort = 7;
     protected static ?string $tenantOwnershipRelationshipName = 'team';
-
     public static function shouldRegisterNavigation(): bool
     {
         $user = Auth::user();

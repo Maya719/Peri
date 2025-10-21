@@ -10,8 +10,6 @@ export default {
         "./resources/views/**/*.blade.php",
         "./resources/views/filament/**/*.blade.php",
         "./vendor/filament/**/*.blade.php",
-        "./vendor/guava/filament-knowledge-base/src/**/*.php",
-        "./vendor/guava/filament-knowledge-base/resources/**/*.blade.php",
     ],
 
     theme: {

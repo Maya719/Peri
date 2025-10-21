@@ -17,7 +17,6 @@ class BankDetail extends Model
         'salary_currency',
         'statutory_component_category_id',
         'statutory_component_percentage',
-        
     ];
 
     public function user()

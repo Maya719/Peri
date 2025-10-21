@@ -29,7 +29,7 @@ class TodoResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
 
-    protected static ?string $navigationLabel = 'To-Do List';
+    protected static ?string $navigationLabel = 'Notpad';
 
     protected static ?string $modelLabel = 'To-Do List';
 

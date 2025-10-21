@@ -30,6 +30,7 @@ class ShiftResource extends Resource implements HasKnowledgeBase
             KnowledgeBase::model()::find('shifts.introduction'),
         ];
     }
+    
     public static function getNavigationBadge(): ?string
     {
         return (string) static::getEloquentQuery()
