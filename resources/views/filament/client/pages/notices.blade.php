@@ -12,17 +12,8 @@
 
     $color = $notices->isEmpty() ? 'gray' : 'primary';
 @endphp
-
-<div class="flex items-center !gap-0">
-    <x-filament::icon-button
-    color="gray"
-    icon="heroicon-o-megaphone"
-    icon-size="lg"
-    class="fi-topbar-database-notifications-btn"
-    x-on:click="$dispatch('open-modal', { id: 'notice-list-modal' })"
-/>
-</div>
-
+<x-filament::icon-button :badge="count($notices) ?: null" color="gray" icon="heroicon-o-megaphone" icon-size="lg"
+    class="fi-topbar-database-notifications-btn" x-on:click="$dispatch('open-modal', { id: 'notice-list-modal' })" />
 
 <x-filament::modal id="notice-list-modal" width="2xl">
     <x-slot name="heading">Active Notices</x-slot>

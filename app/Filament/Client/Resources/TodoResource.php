@@ -31,7 +31,7 @@ class TodoResource extends Resource
 
     protected static ?string $navigationLabel = 'Notpad';
 
-    protected static ?string $modelLabel = 'To-Do List';
+    protected static ?string $modelLabel = 'Notpad';
 
     protected static ?string $navigationBadgeTooltip = 'Pending Tasks';
 
@@ -55,14 +55,8 @@ class TodoResource extends Resource
             Grid::make(3)->schema([
                 Card::make()
                     ->schema([
-                        Grid::make(2)->schema([
-                            TextInput::make('task')
-                                ->required(),
-                            DatePicker::make('deadline')
-                                ->native(false)
-                                ->prefixIcon('heroicon-m-calendar')
-                                ->required(),
-                        ]),
+                        TextInput::make('task')
+                            ->required(),
                         Textarea::make('description')
                             ->autosize(),
                     ])
