@@ -30,13 +30,11 @@ class TodoResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
 
     protected static ?string $navigationLabel = 'Notpad';
-
     protected static ?string $modelLabel = 'Notpad';
-
+    protected static ?string $title = 'Notpad';
+    protected ?string $heading = 'Notpad';
     protected static ?string $navigationBadgeTooltip = 'Pending Tasks';
-
     protected static ?int $navigationSort = 4;
-
     public static function getActiveNavigationIcon(): string|Htmlable|null
     {
         return str(self::getNavigationIcon())->replace('heroicon-o', 'heroicon-s')->toString();

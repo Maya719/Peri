@@ -176,7 +176,7 @@ class ClientPanelProvider extends PanelProvider
             // ->renderHook('panels::topbar.before', function () {
             //     return View::make('filament.client.pages.notices')->render();
             // })
-            ->renderHook('panels::user-menu.before', fn() => view('filament.client.pages.notices'))
+            ->renderHook('panels::topbar.start', fn() => view('filament.client.pages.notices'))
             ->renderHook('panels::footer.before', function () {
                 return View::make('filament.client.components.stripe')->render();
             })
