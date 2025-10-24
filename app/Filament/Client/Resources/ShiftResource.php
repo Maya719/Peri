@@ -2,6 +2,7 @@
 
 namespace App\Filament\Client\Resources;
 
+use App\Facades\Helper;
 use App\Filament\Client\Resources\ShiftResource\Pages;
 use App\Models\Shift;
 use Filament\Resources\Resource;
@@ -29,11 +30,18 @@ class ShiftResource extends Resource implements HasKnowledgeBase
             KnowledgeBase::model()::find('shifts.introduction'),
         ];
     }
+    
     public static function getNavigationBadge(): ?string
     {
         return (string) static::getEloquentQuery()
             ->count();
     }
+    public static function shouldRegisterNavigation(): bool
+    {
+        $user = Auth::user();
+        return ($user->hasRole('Admin') || $user->hasRole('CEO') || $user->hasRole('AMS Manager'));
+    }
+
     public static function form(Form $form): Form
     {
         return $form->schema([
@@ -104,13 +112,23 @@ class ShiftResource extends Resource implements HasKnowledgeBase
             Tables\Columns\TextColumn::make('half_day_check_out'),
             Tables\Columns\TextColumn::make('short_leave')->label('Short leave Limit')->suffix(' mins'),
         ])
+            ->poll(1)
             ->actions([
                 Tables\Actions\EditAction::make()
                     ->visible(fn() => Auth::user()->can('shifts.manage') || Auth::user()->hasRole('Admin')),
 
                 Tables\Actions\DeleteAction::make()
-                    ->visible(fn() => Auth::user()->can('shifts.manage') || Auth::user()->hasRole('Admin')),
+                    ->visible(fn() => Auth::user()->can('shifts.manage') || Auth::user()->hasRole('Admin'))
+                    ->after(function () {
+                        $tenant = \Filament\Facades\Filament::getTenant();
+                        $subscription = $tenant->activePlanSubscriptions()->first();
+                        if ($subscription) {
+                            $subscription->reduceFeatureUsage('shifts');
+                        }
+                    }),
             ])
+            ->actionsColumnLabel('Actions')
+
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()
                     ->visible(fn() => Auth::user()->can('shifts.manage') || Auth::user()->hasRole('Admin')),
@@ -129,12 +147,12 @@ class ShiftResource extends Resource implements HasKnowledgeBase
     // Permissions for CRUD operations
     public static function canViewAny(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin'));
+        return Auth::check() && (Auth::user()->hasRole('Admin')) && Helper::has_feature('shifts');
     }
 
     public static function canCreate(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin'));
+        return Auth::check() && (Auth::user()->hasRole('Admin')) && Helper::is_module_allowed('shifts');
     }
 
     public static function canEdit($record): bool

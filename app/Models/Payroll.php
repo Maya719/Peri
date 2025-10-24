@@ -6,9 +6,11 @@ use App\Facades\Helper;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Payroll extends Model
 {
+    use SoftDeletes;
     use HasFactory;
 
     /**

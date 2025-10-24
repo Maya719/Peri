@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\URL;
 class CEO extends Page implements HasTable
 {
     use InteractsWithTable;
-    protected static ?string $navigationIcon = 'heroicon-o-document-text';
+    protected static ?string $navigationIcon = 'heroicon-o-briefcase';
     protected static string $view = 'filament.client.pages.settings.c-e-o';
     protected static bool $shouldRegisterNavigation = false;
     protected static ?string $title = 'CEO';
@@ -92,8 +92,6 @@ class CEO extends Page implements HasTable
                 ->disableCreateAnother(),
         ];
     }
-
-
 
     public function table(Table $table): Table
     {

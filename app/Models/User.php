@@ -73,25 +73,11 @@ class User extends Authenticatable implements FilamentUser, HasTenants, HasDefau
 
     public function getFilamentAvatarUrl(): ?string
     {
-        if (empty($this->avatar_url)) {
-            return null;
+        if(empty($this->avatar_url))
+        {
+            $this->avatar_url = 'profile-images/avatar-male.jpg';
         }
-        return asset($this->avatar_url);
-    }
-
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::creating(function ($user) {
-            if (empty($user->avatar_url)) {
-                if ($user->gender === 'Female') {
-                    $user->avatar_url = 'profile-images/female.jpg';
-                } else {
-                    $user->avatar_url = 'profile-images/male.jpg';
-                }
-            }
-        });
+        return asset('storage/'.$this->avatar_url);
     }
 
     public function scopeVisibleToCurrentUser($query)
@@ -208,5 +194,10 @@ class User extends Authenticatable implements FilamentUser, HasTenants, HasDefau
     public function attendances()
     {
         return $this->hasMany(Attendance::class);
+    }
+
+    public function leaves()
+    {
+        return $this->hasMany(Leave::class);
     }
 }

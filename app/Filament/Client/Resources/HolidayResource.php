@@ -2,11 +2,11 @@
 
 namespace App\Filament\Client\Resources;
 
+use App\Facades\Helper;
 use App\Filament\Client\Resources\HolidayResource\Pages;
 use App\Models\Holiday;
 use Filament\Facades\Filament;
 use Filament\Forms;
-use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -22,16 +22,14 @@ use Guava\FilamentKnowledgeBase\Facades\KnowledgeBase;
 class HolidayResource extends Resource implements HasKnowledgeBase
 {
     protected static ?string $model = Holiday::class;
-
     protected static ?string $navigationLabel = 'Plan Holidays';
     protected static ?string $navigationGroup = 'Attendance Management';
     protected static ?int $navigationSort = 7;
     protected static ?string $tenantOwnershipRelationshipName = 'team';
-
     public static function shouldRegisterNavigation(): bool
     {
         $user = Auth::user();
-        return $user->hasRole('Admin') || $user->attendance_config == 1 || $user->hasRole('CEO') || $user->hasRole('AMS Manager');
+        return ($user->hasRole('Admin') ||  Auth::user()->can('holiday.manage') || $user->hasRole('CEO') || $user->hasRole('AMS Manager'));
     }
 
     public static function getDocumentation(): array
@@ -70,7 +68,7 @@ class HolidayResource extends Resource implements HasKnowledgeBase
                                         'xl' => 12,
                                         '2xl' => 12,
                                     ]),
-                                DatePicker::make('starting_date')
+                                Forms\Components\DatePicker::make('starting_date')
                                     ->required()
                                     ->native(false)
                                     ->prefixIcon('heroicon-m-calendar')
@@ -79,7 +77,7 @@ class HolidayResource extends Resource implements HasKnowledgeBase
                                         'xl' => 6,
                                         '2xl' => 6,
                                     ]),
-                                DatePicker::make('ending_date')
+                                Forms\Components\DatePicker::make('ending_date')
                                     ->required()
                                     ->native(false)
                                     ->prefixIcon('heroicon-m-calendar')
@@ -202,6 +200,7 @@ class HolidayResource extends Resource implements HasKnowledgeBase
                 Tables\Actions\DeleteAction::make()
                     ->visible(fn() => Auth::user()->can('holiday.manage') || Auth::user()->hasRole('Admin')),
             ])
+            ->actionsColumnLabel('Actions')
             ->defaultSort('created_at', 'desc')
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()
@@ -225,7 +224,7 @@ class HolidayResource extends Resource implements HasKnowledgeBase
 
     public static function canViewAny(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin') || Auth::user()->can('holiday.view') || Auth::user()->can('holiday.manage'));
+        return Auth::check() && (Auth::user()->hasRole('Admin') || Auth::user()->can('holiday.view') || Auth::user()->can('holiday.manage')) && Helper::has_feature('attendance');
     }
 
     public static function canCreate(): bool

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Client\Resources;
 
+use App\Facades\Helper;
 use App\Filament\Client\Resources\FundsResource\Pages;
 use App\Models\Fund;
 use Filament\Resources\Resource;
@@ -21,6 +22,7 @@ use Filament\Tables\Columns\ToggleColumn;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 use App\Services\PayrollCalculationService;
 use Illuminate\Support\Facades\Auth;
+use Filament\Facades\Filament;
 
 class FundsResource extends Resource
 {
@@ -44,6 +46,12 @@ class FundsResource extends Resource
                         Grid::make(2)
                             ->schema([
                                 Forms\Components\TextInput::make('name')->required(),
+                                Forms\Components\Select::make('tax_status')
+                                    ->options([
+                                        'non-taxable' => 'Non-Taxable (Pre-Tax)',
+                                        'taxable' => 'Taxable (Post-Tax)',
+                                    ])
+                                    ->required(),
                                 TableRepeater::make('brackets')
                                     ->label('Brackets')
                                     ->schema([
@@ -193,8 +201,16 @@ class FundsResource extends Resource
             ->searchPlaceholder('Search Fund')
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ]);
+                Tables\Actions\DeleteAction::make()
+                    ->after(function () {
+                        $tenant = Filament::getTenant();
+                        $subscription = $tenant->activePlanSubscriptions()->first();
+                        if ($subscription) {
+                            $subscription->reduceFeatureUsage('funds');
+                        }
+                    }),
+            ])
+            ->actionsColumnLabel('Actions');
     }
 
     public static function getPages(): array
@@ -207,21 +223,13 @@ class FundsResource extends Resource
     }
     public static function canViewAny(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin'));
+        return Auth::check() && (Auth::user()->hasRole('Admin') || Auth::user()->hasRole('Payroll Manager') ||
+            Auth::user()->can('payroll.manage')) && Helper::has_feature('payroll');
     }
 
     public static function canCreate(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin'));
-    }
-
-    public static function canEdit($record): bool
-    {
-        return Auth::check() && (Auth::user()->hasRole('Admin'));
-    }
-
-    public static function canDelete($record): bool
-    {
-        return Auth::check() && (Auth::user()->hasRole('Admin'));
+        return !Filament::getTenant()->payruns()->whereIn('status', ['draft', 'pending_approval', 'rejected'])->exists()
+            && Helper::is_module_allowed('funds');
     }
 }

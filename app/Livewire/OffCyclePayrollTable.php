@@ -39,6 +39,7 @@ class OffCyclePayrollTable extends Component implements HasForms, HasTable
                     ->orderByDesc('created_at')
             )
             ->heading('One-Time Payment')
+            ->emptyStateHeading('No one-time payment pending')
             ->columns([
                 Tables\Columns\TextColumn::make('period_display')
                     ->label('Due Date')
@@ -118,7 +119,6 @@ class OffCyclePayrollTable extends Component implements HasForms, HasTable
                     ->requiresConfirmation()
                     ->modalDescription('Select a date to record the payment.'),
             ])
-            ->emptyStateHeading('No pending one-time payments')
             ->paginated(false);
     }
 

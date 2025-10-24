@@ -3,6 +3,8 @@
 namespace App\Filament\Client\Resources\EmployeeResource\Pages;
 
 use App\Facades\Email;
+use App\Facades\Helper;
+use App\Filament\Client\Concerns\HasModuleAuthorization;
 use App\Filament\Client\Resources\EmployeeResource;
 use App\Models\Invitation;
 use App\Models\Subscription;
@@ -17,6 +19,10 @@ use Illuminate\Support\Facades\URL;
 class ListEmployees extends ListRecords
 {
     protected static string $resource = EmployeeResource::class;
+
+    use HasModuleAuthorization;
+
+    protected string $moduleName = 'employees';
 
     protected function getHeaderActions(): array
     {
@@ -83,12 +89,11 @@ class ListEmployees extends ListRecords
                         ->modalButton('Send Invite')
                         ->modalWidth('md'),
                 ]
-            )->label('Create Pay Run')
+            )
                 ->label('Add')
                 ->icon('heroicon-o-plus')
                 ->color('primary')
                 ->button(),
-
         ];
     }
 }

@@ -10,10 +10,10 @@ class Fund extends Model
     use HasFactory;
 
     protected $fillable = [
-        'team_id',
         'name',
+        'tax_status',
         'brackets',
-        'is_active',
+        'team_id',
     ];
     protected $casts = [
         'brackets' => 'array',

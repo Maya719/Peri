@@ -16,12 +16,15 @@ class Home extends Controller
     public function index()
     {
         $settings = Setting::getByType('general');
-        $plans = Plan::where('is_active', 1)->get();
+        $plans = Plan::where('is_active', 1)
+            ->where('price', '>', 0)
+            ->get();
         $feature = SaasFeature::all();
         $featureCount = $feature->count();
         $about = About::first();
         $ReCaptcha = Setting::getByType('recaptcha');
-        return view('home.index', compact('settings', 'plans', 'feature', 'featureCount', 'about', 'ReCaptcha'));
+        $freeplan = Plan::where('slug', 'free-trial')->first();
+        return view('home.index', compact('settings', 'plans', 'feature', 'featureCount', 'about', 'ReCaptcha', 'freeplan'));
     }
     public function privacy()
     {

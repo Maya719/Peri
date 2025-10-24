@@ -90,61 +90,6 @@
                             placeholder="Search Employee" class="custom-input w-full" />
                     </div>
 
-
-                    {{-- Filters Dropdown --}}
-                    <div x-data="{ open: false }" class="relative flex-shrink-0">
-                        <x-filament::icon-button tag="button" @click="open = !open" icon="heroicon-m-funnel"
-                            color="{{ $this->areDropdownFiltersActive() ? 'gray' : 'gray' }}">
-                        </x-filament::icon-button>
-
-                        <div x-show="open" @click.outside="open = false"
-                            x-transition:enter="transition ease-out duration-100"
-                            x-transition:enter-start="transform opacity-0 scale-95"
-                            x-transition:enter-end="transform opacity-100 scale-100"
-                            x-transition:leave="transition ease-in duration-75"
-                            x-transition:leave-start="transform opacity-100 scale-100"
-                            x-transition:leave-end="transform opacity-0 scale-95"
-                            class="absolute right-0 z-20 mt-2 w-72 origin-top-right rounded-xl bg-white dark:bg-gray-800 shadow-lg ring-1 ring-gray-950/5 dark:ring-white/10 focus:outline-none p-6 space-y-4"
-                            style="display: none;" x-cloak>
-
-                            <h3 class="text-base font-semibold text-gray-950 dark:text-white">
-                                Filters
-                            </h3>
-
-                            {{-- Type Filter --}}
-                            <div>
-                                <label for="filterTypeWidget"
-                                    class="block text-sm font-medium text-gray-950 dark:text-gray-200 mb-3">Type</label>
-                                <select id="filterTypeWidget" wire:model.live="filterType" class="custom-select w-full">
-                                    @foreach ($eventTypes as $value => $label)
-                                        <option value="{{ $value }}">{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            {{-- Month Filter --}}
-                            <div>
-                                <label for="filterMonthWidget"
-                                    class="block text-sm font-medium text-gray-950 dark:text-gray-200 mb-3">Duration</label>
-                                <select id="filterMonthWidget" wire:model.live="filterMonth"
-                                    class="custom-select w-full">
-                                    @foreach ($eventMonths as $value => $label)
-                                        <option value="{{ $value }}">{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            {{-- Reset Button --}}
-                            @if ($this->areDropdownFiltersActive())
-                                <div class="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700">
-                                    <x-filament::button color="danger" tag="button" wire:click="resetDropdownFilters"
-                                        class="w-full justify-center">
-                                        Reset Filters
-                                    </x-filament::button>
-                                </div>
-                            @endif
-                        </div>
-                    </div>
                 </div>
             </div>
 

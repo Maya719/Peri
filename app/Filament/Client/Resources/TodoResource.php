@@ -4,6 +4,7 @@ namespace App\Filament\Client\Resources;
 
 use App\Filament\Client\Resources\TodoResource\Pages;
 use App\Models\Todo;
+use Filament\Tables\Actions\ActionGroup;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -12,7 +13,6 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,15 +28,12 @@ class TodoResource extends Resource
     protected static ?string $model = Todo::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
-
-    protected static ?string $navigationLabel = 'To-Do List';
-
-    protected static ?string $modelLabel = 'To-Do List';
-
+    protected static ?string $navigationLabel = 'Notepad';
+    protected static ?string $modelLabel = 'Notepad';
+    protected static ?string $title = 'Notepad';
+    protected ?string $heading = 'Notepad';
     protected static ?string $navigationBadgeTooltip = 'Pending Tasks';
-
     protected static ?int $navigationSort = 4;
-
     public static function getActiveNavigationIcon(): string|Htmlable|null
     {
         return str(self::getNavigationIcon())->replace('heroicon-o', 'heroicon-s')->toString();
@@ -55,14 +52,8 @@ class TodoResource extends Resource
             Grid::make(3)->schema([
                 Card::make()
                     ->schema([
-                        Grid::make(2)->schema([
-                            TextInput::make('task')
-                                ->required(),
-                            DatePicker::make('deadline')
-                                ->native(false)
-                                ->prefixIcon('heroicon-m-calendar')
-                                ->required(),
-                        ]),
+                        TextInput::make('task')
+                            ->required(),
                         Textarea::make('description')
                             ->autosize(),
                     ])
@@ -77,44 +68,13 @@ class TodoResource extends Resource
         return $table
             ->recordUrl(null)
             ->columns([
-                Split::make([
-                    TextColumn::make('task'),
-                    TextColumn::make('deadline')
-                        ->date(),
-                    TextColumn::make('is_completed')
-                        ->label('Status')
-                        ->badge()
-                        ->formatStateUsing(fn(string $state): string => $state ? 'Completed' : 'Pending')
-                        ->color(fn(string $state): string => $state ? 'success' : 'warning'),
-                ]),
-                Panel::make([
-                    Stack::make([
-                        TextColumn::make('description')
-                            ->html()
-                            ->wrap()
-                            ->extraAttributes(['class' => 'whitespace-pre-wrap'])
-                            ->formatStateUsing(fn(string $state): string => nl2br($state)),
-                    ]),
-                ])->collapsible(),
+               
             ])
-            ->filters([
-                SelectFilter::make('is_completed')
-                    ->label('Status')
-                    ->options([
-                        0 => 'Pending',
-                        1 => 'Completed',
-                    ]),
-            ])
+            ->defaultSort('is_completed', 'asc')
             ->actions([
-                Action::make('Complete')
-                    ->action(fn(Todo $record) => $record->update(['is_completed' => true]))
-                    ->requiresConfirmation()
-                    ->color('success')
-                    ->icon('heroicon-o-check-circle')
-                    ->visible(fn(Todo $record) => ! $record->is_completed),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ]);
+               
+            ])
+            ->actionsColumnLabel('Actions');
     }
 
     public static function getEloquentQuery(): Builder
@@ -130,4 +90,5 @@ class TodoResource extends Resource
             'edit' => Pages\EditTodo::route('/{record}/edit'),
         ];
     }
+    
 }

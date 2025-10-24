@@ -59,7 +59,7 @@ class LeaveBalanceChart extends ChartWidget
     public static function canView(): bool
     {
         $user = Auth::user();
-        if ($user->attendance_config === 1) {
+        if ($user->attendance_config === 1 && Helper::has_feature('attendance')) {
             return true;
         }
         return false;

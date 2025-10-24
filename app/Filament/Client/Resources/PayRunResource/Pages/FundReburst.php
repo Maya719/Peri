@@ -172,6 +172,7 @@ class FundReburst extends Page implements HasForms, HasTable
                                         ->label('Tax Amount')
                                         ->numeric()
                                         ->prefix(fn() => $this->currencySymbol ?? '')
+                                        ->formatStateUsing(fn($state) => $state !== null ? round($state) : null)
                                         ->minValue(0)
                                         ->default(0)
                                         ->required(),
@@ -211,6 +212,7 @@ class FundReburst extends Page implements HasForms, HasTable
                                             ->numeric()
                                             ->minValue(0)
                                             ->prefix(fn() => $this->currencySymbol ?? '')
+                                            ->formatStateUsing(fn($state) => $state !== null ? round($state) : null)
                                             ->required()
                                             ->reactive()
                                     ])

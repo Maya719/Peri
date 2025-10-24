@@ -17,8 +17,13 @@ class CreateEmployee extends CreateRecord
 
     protected function afterCreate(): void
     {
-        $role = Role::find($this->data["role"]);
-        $this->record->syncRoles($role);
+        $roles = [];
+        // Filter out nulls and get unique roles
+        $uniqueRoles = collect($roles)->filter()->unique('id');
+
+        if ($uniqueRoles->isNotEmpty()) {
+            $this->record->syncRoles($uniqueRoles);
+        }
 
         $tenant = Filament::getTenant();
 
@@ -48,13 +53,12 @@ class CreateEmployee extends CreateRecord
         $bankDetails = $this->data['bank_details'] ?? [];
         $paymentMethod = $bankDetails['payment_method'] ?? null;
         $bankDetails['base_salary'] = $bankDetails['base_salary'] !== '' ? $bankDetails['base_salary'] : null;
-        $bankDetails['probation_salary'] = $bankDetails['probation_salary'] !== '' ? $bankDetails['probation_salary'] : null;
+
 
         if ($paymentMethod !== 'bank_transfer') {
             $bankDetails['account_holder_name'] = null;
             $bankDetails['account_number'] = null;
             $bankDetails['bank_name'] = null;
-            
         }
 
         $this->record->bankDetails()->updateOrCreate(
@@ -66,6 +70,18 @@ class CreateEmployee extends CreateRecord
         foreach ($fundIds as $fundId) {
             $this->record->funds()->attach($fundId, ['team_id' => $tenant->id]);
         }
+
+        $rolesToUpdate = Role::where('team_id', $tenant->id)
+            ->where('assignment', 'all')
+            ->get();
+
+        foreach ($rolesToUpdate as $role) {
+            $assignedUsers = $role->assigned_users ?? [];
+            $assignedUsers[] = $this->record->id;
+            $role->assigned_users = $assignedUsers;
+            $role->save();
+        }
+        \App\Facades\Helper::record_feature_usage('employees');
     }
 
 

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Client\Resources;
 
+use App\Facades\Helper;
 use App\Filament\Client\Resources\PayRunResource\Pages;
 use App\Filament\Client\Resources\PayRunResource\RelationManagers;
 use App\Filament\Client\Resources\PayRunResource\RelationManagers\PayrollsRelationManager;
@@ -119,7 +120,7 @@ class PayRunResource extends Resource
     {
         return $table
             ->heading('Regular Payroll')
-            ->emptyStateHeading('No ongoing payroll')
+            ->emptyStateHeading('No payroll pending')
             ->columns([
                 Tables\Columns\TextColumn::make('period_display')
                     ->label('Period')
@@ -201,6 +202,7 @@ class PayRunResource extends Resource
                     ->requiresConfirmation()
                     ->modalDescription('Select a date to record the payment.'),
             ])
+            ->actionsColumnLabel('Actions')
             ->recordUrl(null)
             ->defaultSort('year', 'desc')
             ->defaultSort('month', 'desc');
@@ -253,8 +255,10 @@ class PayRunResource extends Resource
     {
         return Auth::check() && (
             Auth::user()->hasRole('Admin') ||
-            Auth::user()->can('payroll.create') ||
+            Auth::user()->hasRole('CEO') ||
+            Auth::user()->hasRole('Payroll Manager') ||
+            Auth::user()->can('payroll.manage') ||
             Auth::user()->can('payroll.approve')
-        );
+        ) && Helper::has_feature('payroll');
     }
 }

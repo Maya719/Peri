@@ -21,6 +21,7 @@ class StatsOverview extends BaseWidget
     {
         return true;
     }
+    
     protected function getStats(): array
     {
         $earnings = Payment::where('status', '1')

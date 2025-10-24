@@ -26,7 +26,7 @@ class DaysWidget extends BaseWidget
     public static function canView(): bool
     {
         $user = Auth::user();
-        if (($user->hasRole('Admin') || Helper::isAssignUsers()) && $user) {
+        if (($user->hasRole('Admin') || Helper::isAssignUsers()) && $user && Helper::has_feature('attendance')) {
             return true;
         }
         return false;

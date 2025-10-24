@@ -65,7 +65,7 @@ class AttendanceTableWidget extends BaseWidget
     {
         $user = Auth::user();
 
-        if (($user->hasRole('Admin') || Helper::isAssignUsers()) && $user) {
+        if (($user->hasRole('Admin') || Helper::isAssignUsers()) && $user && Helper::has_feature('attendance')) {
             return true;
         }
 
@@ -81,7 +81,8 @@ class AttendanceTableWidget extends BaseWidget
                 Tables\Columns\ImageColumn::make('avatar_url')
                     ->label('Avatar')
                     ->grow(false)
-                    ->circular(),
+                    ->circular()
+                    ->url(fn($record) => $record->avatar_url),
                 Tables\Columns\TextColumn::make('name')->label('Employee')->searchable()->grow(false)->width('25%'),
                 Tables\Columns\TextColumn::make('department_name')->label('Department')->searchable()->grow(false)->width('25%'),
                 Tables\Columns\TextColumn::make('status')

@@ -49,7 +49,7 @@ class EditPayRun extends EditRecord
                 ->action('approvePayRun')
                 ->visible(
                     fn($record) => ($record->status === 'pending_approval') &&
-                        ($user->hasPermissionTo('payroll.approve') || $user->hasRole('Admin'))
+                        ($user->hasPermissionTo('payroll.approve') || $user->hasRole('Admin') || $user->hasRole('CEO'))
                 )
                 ->requiresConfirmation(false),
 
@@ -78,7 +78,7 @@ class EditPayRun extends EditRecord
                 })
                 ->visible(
                     fn($record) => ($record->status === 'pending_approval') &&
-                        ($user->hasPermissionTo('payroll.approve') || $user->hasRole('Admin'))
+                        ($user->hasPermissionTo('payroll.approve') || $user->hasRole('Admin') || $user->hasRole('CEO'))
                 )
                 ->modalHeading('')
                 ->modalSubmitActionLabel('Reject'),
@@ -124,6 +124,16 @@ class EditPayRun extends EditRecord
                             }
                             $loan->save();
                         }
+                    }
+                }
+
+                // Update employee's base_salary if an increment was applied in this payroll
+                if ($payroll->applied_increment_amount > 0) {
+                    $employeeBankDetails = $payroll->user->bankDetails->first();
+                    if ($employeeBankDetails) {
+                        // The payroll's base_salary already includes the increment
+                        $employeeBankDetails->base_salary = $payroll->base_salary;
+                        $employeeBankDetails->save();
                     }
                 }
             }

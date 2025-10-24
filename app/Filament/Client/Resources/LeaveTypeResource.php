@@ -2,6 +2,7 @@
 
 namespace App\Filament\Client\Resources;
 
+use App\Facades\Helper;
 use App\Filament\Client\Resources\LeaveTypeResource\Pages;
 use App\Models\LeaveType;
 use Filament\Forms;
@@ -28,7 +29,7 @@ class LeaveTypeResource extends Resource implements HasKnowledgeBase
     public static function shouldRegisterNavigation(): bool
     {
         $user = Auth::user();
-        return $user->hasRole('Admin') || $user->attendance_config == 1 || $user->hasRole('CEO') || $user->hasRole('AMS Manager');
+        return ($user->hasRole('Admin') || $user->attendance_config == 1 || $user->hasRole('CEO') || $user->hasRole('AMS Manager'));
     }
     public static function getNavigationBadge(): ?string
     {
@@ -116,6 +117,7 @@ class LeaveTypeResource extends Resource implements HasKnowledgeBase
                 DeleteAction::make()
                     ->visible(fn() => Auth::user()->hasRole('Admin') || Auth::user()->can('leaveType.manage')),
             ])
+            ->actionsColumnLabel('Actions')
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
@@ -135,7 +137,7 @@ class LeaveTypeResource extends Resource implements HasKnowledgeBase
 
     public static function canViewAny(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin'));
+        return Auth::check() && (Auth::user()->hasRole('Admin')) && Helper::has_feature('attendance');
     }
 
     public static function canCreate(): bool

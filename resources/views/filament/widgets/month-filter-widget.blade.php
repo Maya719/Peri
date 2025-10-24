@@ -1,6 +1,7 @@
 @php
     $user = auth()->user();
-    $showDashboard2 = $user && $user->attendance_config == 0 && $user->can('payroll.create');
+    $showDashboard2 =
+        ($user && $user->attendance_config == 0 && $user->can('payroll.manage')) || $user->hasRole('Payroll Manager');
 @endphp
 
 <x-filament::widget>
@@ -16,8 +17,11 @@
                 </x-filament::button>
             </div>
         @else
-            <h2 class="text-2xl font-semibold tracking-tight text-gray-950 dark:text-white sm:text-3xl">
+            <h2 class="text-2xl font-semibold tracking-tight text-gray-950 dark:text-white sm:text-3xl block sm:hidden">
                 Dashboard
+            </h2>
+            <h2 class="text-2xl font-semibold tracking-tight text-gray-950 dark:text-white sm:text-3xl hidden sm:block">
+                Dashboard Overview
             </h2>
 
             <div

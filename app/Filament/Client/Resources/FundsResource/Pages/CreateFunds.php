@@ -16,4 +16,8 @@ class CreateFunds extends CreateRecord
     {
         return $this->getResource()::getUrl('index');
     }
+    protected function afterCreate(): void
+    {
+        \App\Facades\Helper::record_feature_usage('funds');
+    }
 }

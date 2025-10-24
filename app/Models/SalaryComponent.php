@@ -12,7 +12,6 @@ class SalaryComponent extends Model
 
     protected $fillable = [
         'team_id',
-        'name',
         'title',
         'component_type',
         'value_type',
@@ -20,8 +19,6 @@ class SalaryComponent extends Model
         'tax_status',
         'is_one_time_deduction',
         'is_active',
-        // 'user_id',
-        // 'department_id',
         'apply_to_all',
     ];
 

@@ -29,7 +29,7 @@ class MonthWidget extends BaseWidget
 
         $hasAdminRole = $user->hasRole('Admin');
         $hasPayrollRole = $user->hasRole('Payroll Manager');
-        $hasPayrollPermission = $user->can('payroll.create');
+        $hasPayrollPermission = $user->can('payroll.manage');
         $hasAssignedUsers = Helper::isAssignUsers();
         $attendanceConfigDisabled = $user->attendance_config == 0;
 

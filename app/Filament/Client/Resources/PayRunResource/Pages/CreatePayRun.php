@@ -91,6 +91,13 @@ class CreatePayRun extends CreateRecord
                     [],
                     [],
                     false,
+                    'number',
+                    null,
+                    true,
+                    true,
+                    true,
+                    'non-taxable',
+                    'taxable'
                 );
                 Payroll::create(array_merge($payrollData, [
                     'user_id' => $employee->id,

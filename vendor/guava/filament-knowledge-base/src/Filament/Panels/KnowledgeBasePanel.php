@@ -183,12 +183,25 @@ class KnowledgeBasePanel extends Panel
         return ['mod+k'];
     }
 
+    public function getGlobalSearchFieldSuffix(): ?string
+    {
+        if ($suffix = parent::getGlobalSearchFieldSuffix()) {
+            return $suffix;
+        }
+
+        return match (Platform::detect()) {
+            Platform::Windows, Platform::Linux => 'CTRL+K',
+            Platform::Mac => '⌘K',
+            Platform::Other => null,
+        };
+    }
+
     protected function setUp(): void
     {
         $this
             ->when(
                 ! $this->hasGuestAccess(),
-                fn(Panel $panel) => $panel
+                fn (Panel $panel) => $panel
                     ->widgets([
                         AccountWidget::class,
                     ])
@@ -199,15 +212,15 @@ class KnowledgeBasePanel extends Panel
 
             ->when(
                 ! $this->shouldDisableBackToDefaultPanelButton(),
-                fn(Panel $panel) => $panel
+                fn (Panel $panel) => $panel
                     ->renderHook(
-                        PanelsRenderHook::TOPBAR_END,
-                        fn(): string => view('filament-knowledge-base::sidebar-action', [
+                        PanelsRenderHook::SIDEBAR_FOOTER,
+                        fn (): string => view('filament-knowledge-base::sidebar-action', [
                             'label' => __('filament-knowledge-base::translations.back-to-default-panel'),
                             'icon' => 'heroicon-o-arrow-uturn-left',
                             'url' => KnowledgeBase::url(Filament::getDefaultPanel()),
                             'shouldOpenUrlInNewTab' => false,
-                        ])->render()
+                        ])
                     )
             )
 
@@ -220,19 +233,20 @@ class KnowledgeBasePanel extends Panel
     {
         return NavigationItem::make($documentable->getTitle())
             ->group($documentable->getGroup())
+            ->icon($documentable->getIcon())
             ->sort($documentable->getOrder())
             ->childItems(
                 KnowledgeBase::model()::query()
                     ->where('parent', $documentable->getTitle())
                     ->get()
-                    ->filter(fn(Documentable $documentable) => $documentable->isRegistered())
-                    ->sort(fn(Documentable $d1, Documentable $d2) => $d1->getOrder() <=> $d2->getOrder())
-                    ->map(fn(Documentable $documentable) => $this->buildNavigationItem($documentable))
+                    ->filter(fn (Documentable $documentable) => $documentable->isRegistered())
+                    ->sort(fn (Documentable $d1, Documentable $d2) => $d1->getOrder() <=> $d2->getOrder())
+                    ->map(fn (Documentable $documentable) => $this->buildNavigationItem($documentable))
                     ->toArray()
             )
             ->parentItem($documentable->getParent())
             ->url($documentable->getUrl())
-            ->isActiveWhen(fn() => url()->current() === $documentable->getUrl())
+            ->isActiveWhen(fn () => url()->current() === $documentable->getUrl())
         ;
     }
 
@@ -246,30 +260,31 @@ class KnowledgeBasePanel extends Panel
                     ...collect(Discover::in(app_path('Docs'))
                         ->extending(Documentation::class)
                         ->get())
-                        ->map(fn($class) => new $class)
+                        ->map(fn ($class) => new $class)
                         ->all()
-                );
+                )
+            ;
         }
 
         $documentables
-            ->filter(fn(Documentable $documentable) => $documentable->isRegistered())
-            ->filter(fn(Documentable $documentable) => $documentable->getParent() === null)
-            ->groupBy(fn(Documentable $documentable) => $documentable->getGroup())
+            ->filter(fn (Documentable $documentable) => $documentable->isRegistered())
+            ->filter(fn (Documentable $documentable) => $documentable->getParent() === null)
+            ->groupBy(fn (Documentable $documentable) => $documentable->getGroup())
             ->map(
-                fn(Collection $items, string $key) => empty($key)
+                fn (Collection $items, string $key) => empty($key)
                     ? $items
-                    ->sort(fn(Documentable $d1, Documentable $d2) => $d1->getOrder() <=> $d2->getOrder())
-                    ->map(fn(Documentable $documentation) => $this->buildNavigationItem($documentation))
+                        ->sort(fn (Documentable $d1, Documentable $d2) => $d1->getOrder() <=> $d2->getOrder())
+                        ->map(fn (Documentable $documentation) => $this->buildNavigationItem($documentation))
                     : NavigationGroup::make($key)
-                    ->items(
-                        $items
-                            ->sort(fn(Documentable $d1, Documentable $d2) => $d1->getOrder() <=> $d2->getOrder())
-                            ->map(fn(Documentable $documentable) => $this->buildNavigationItem($documentable))
-                            ->toArray()
-                    )
+                        ->items(
+                            $items
+                                ->sort(fn (Documentable $d1, Documentable $d2) => $d1->getOrder() <=> $d2->getOrder())
+                                ->map(fn (Documentable $documentable) => $this->buildNavigationItem($documentable))
+                                ->toArray()
+                        )
             )
             ->flatten()
-            ->each(fn($item) => match (true) {
+            ->each(fn ($item) => match (true) {
                 $item instanceof NavigationItem => $builder->item($item),
                 $item instanceof NavigationGroup => $builder->group($item),
             })

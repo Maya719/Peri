@@ -5,9 +5,13 @@ namespace App\Filament\Client\Resources;
 use App\Facades\Helper;
 use App\Filament\Client\Resources\LeaveResource\Pages;
 use App\Models\Leave;
+use App\Models\LeaveLog;
+use App\Models\Role;
 use Carbon\Carbon;
 use Filament\Facades\Filament;
 use Filament\Forms;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -19,12 +23,13 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Illuminate\Support\Facades\DB;
-use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 use Illuminate\Validation\ValidationException;
 use Filament\Forms\Get;
+use Filament\Tables\Enums\FiltersLayout;
 use Illuminate\Support\Str;
 use Guava\FilamentKnowledgeBase\Contracts\HasKnowledgeBase;
 use Guava\FilamentKnowledgeBase\Facades\KnowledgeBase;
+use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
 class LeaveResource extends Resource implements HasKnowledgeBase
 {
@@ -39,7 +44,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
     public static function shouldRegisterNavigation(): bool
     {
         $user = Auth::user();
-        return $user->hasRole('Admin') || $user->attendance_config == 1 || $user->hasRole('CEO') || $user->hasRole('AMS Manager');
+        return ($user->hasRole('Admin') || $user->attendance_config == 1 || $user->hasRole('CEO') || $user->hasRole('AMS Manager')) && Helper::has_feature('attendance');
     }
 
     // LeaveResource.php
@@ -137,10 +142,10 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                 ->options(function () {
                                                     $user = Auth::user();
                                                     if (in_array($user->attendance_type, ['offsite', 'hybrid'])) {
-                                                        return ['regular' => 'Regular Leave'];
+                                                        return ['regular' => 'Full Day Leave'];
                                                     }
                                                     return [
-                                                        'regular' => 'Regular Leave',
+                                                        'regular' => 'Full Day Leave',
                                                         'half_day' => 'Half Day Leave',
                                                         'short_leave' => 'Short Leave',
                                                     ];
@@ -238,18 +243,18 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                 ->where('starting_date', '>=', $startDate)
                                                 ->get()
                                                 ->sum(function ($leave) {
-                                                    // Determine leave duration based on the type.
-                                                    if ($leave->type === 'regular') {
-                                                        $start = \Carbon\Carbon::parse($leave->starting_date);
-                                                        $end = \Carbon\Carbon::parse($leave->ending_date);
-                                                        return $start->diffInDays($end) + 1;
-                                                    } elseif ($leave->type === 'half_day') {
-                                                        return 0.5;
-                                                    } elseif ($leave->type === 'short_leave') {
-                                                        return 0.25;
-                                                    }
-                                                    return 0;
-                                                });
+                                                // Determine leave duration based on the type.
+                                                if ($leave->type === 'regular') {
+                                                    $start = \Carbon\Carbon::parse($leave->starting_date);
+                                                    $end = \Carbon\Carbon::parse($leave->ending_date);
+                                                    return $start->diffInDays($end) + 1;
+                                                } elseif ($leave->type === 'half_day') {
+                                                    return 0.5;
+                                                } elseif ($leave->type === 'short_leave') {
+                                                    return 0.25;
+                                                }
+                                                return 0;
+                                            });
                                             return $usedPaidLeaves >= $allowedCount;
                                         })
                                         ->live()
@@ -395,11 +400,11 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                     // Regular Leave Fields
                                     Forms\Components\Grid::make()
                                         ->schema([
-                                            Forms\Components\DatePicker::make('starting_date')
+                                            DatePicker::make('starting_date')
                                                 ->required()
                                                 ->reactive()
                                                 ->label('Starting Date')
-                                                ->native(false)
+                                                ->native(false)->closeOnDateSelection()
                                                 ->prefixIcon('heroicon-m-calendar')
                                                 ->minDate(function () {
                                                     $user = Auth::user();
@@ -410,11 +415,11 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                     return null;
                                                 }),
 
-                                            Forms\Components\DatePicker::make('ending_date')
+                                            DatePicker::make('ending_date')
                                                 ->required()
                                                 ->label('Ending Date')
                                                 ->afterOrEqual('starting_date')
-                                                ->native(false)
+                                                ->native(false)->closeOnDateSelection()
                                                 ->prefixIcon('heroicon-m-calendar')
                                                 ->minDate(function () {
                                                     $user = Auth::user();
@@ -458,28 +463,28 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                         // STEP 2: Get holidays for filtering
                                                         $holidays = Filament::getTenant()->holidays()
                                                             ->where(function ($query) use ($user) {
-                                                                $query->where('apply', 'all')
-                                                                    ->orWhere(function ($q) use ($user) {
-                                                                        $q->where('apply', 'user')
-                                                                            ->whereRaw('JSON_CONTAINS(users, JSON_QUOTE(?))', [(string) $user->id]);
-                                                                    })
-                                                                    ->orWhere(function ($q) use ($user) {
-                                                                        $q->where('apply', 'shift')
-                                                                            ->whereRaw('JSON_CONTAINS(shifts, JSON_QUOTE(?))', [(string) $user->assignedShift?->shift?->id]);
-                                                                    })
-                                                                    ->orWhere(function ($q) use ($user) {
-                                                                        $q->where('apply', 'department')
-                                                                            ->whereRaw('JSON_CONTAINS(departments, JSON_QUOTE(?))', [(string) $user->assignedDepartment?->department?->id]);
-                                                                    });
-                                                            })
+                                                            $query->where('apply', 'all')
+                                                                ->orWhere(function ($q) use ($user) {
+                                                                    $q->where('apply', 'user')
+                                                                        ->whereRaw('JSON_CONTAINS(users, JSON_QUOTE(?))', [(string) $user->id]);
+                                                                })
+                                                                ->orWhere(function ($q) use ($user) {
+                                                                    $q->where('apply', 'shift')
+                                                                        ->whereRaw('JSON_CONTAINS(shifts, JSON_QUOTE(?))', [(string) $user->assignedShift?->shift?->id]);
+                                                                })
+                                                                ->orWhere(function ($q) use ($user) {
+                                                                    $q->where('apply', 'department')
+                                                                        ->whereRaw('JSON_CONTAINS(departments, JSON_QUOTE(?))', [(string) $user->assignedDepartment?->department?->id]);
+                                                                });
+                                                        })
                                                             ->where(function ($query) use ($start, $end) {
-                                                                $query->whereBetween('starting_date', [$start, $end])
-                                                                    ->orWhereBetween('ending_date', [$start, $end])
-                                                                    ->orWhere(function ($q) use ($start, $end) {
-                                                                        $q->where('starting_date', '<=', $start)
-                                                                            ->where('ending_date', '>=', $end);
-                                                                    });
-                                                            })
+                                                            $query->whereBetween('starting_date', [$start, $end])
+                                                                ->orWhereBetween('ending_date', [$start, $end])
+                                                                ->orWhere(function ($q) use ($start, $end) {
+                                                                    $q->where('starting_date', '<=', $start)
+                                                                        ->where('ending_date', '>=', $end);
+                                                                });
+                                                        })
                                                             ->get();
 
                                                         $holidayDates = collect();
@@ -536,10 +541,10 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                     // Half Day Fields
                                     Forms\Components\Grid::make()
                                         ->schema([
-                                            Forms\Components\DatePicker::make('starting_date')
+                                            DatePicker::make('starting_date')
                                                 ->required()
                                                 ->label('Date')
-                                                ->native(false)
+                                                ->native(false)->closeOnDateSelection()
                                                 ->prefixIcon('heroicon-m-calendar')
                                                 ->minDate(function () {
                                                     $user = Auth::user();
@@ -565,10 +570,10 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                     // Short Leave Fields
                                     Forms\Components\Grid::make()
                                         ->schema([
-                                            Forms\Components\DatePicker::make('starting_date')
+                                            DatePicker::make('starting_date')
                                                 ->required()
                                                 ->label('Date')
-                                                ->native(false)
+                                                ->native(false)->closeOnDateSelection()
                                                 ->prefixIcon('heroicon-m-calendar')
                                                 ->minDate(function () {
                                                     $user = Auth::user();
@@ -583,12 +588,12 @@ class LeaveResource extends Resource implements HasKnowledgeBase
 
                                             Forms\Components\Grid::make(2)
                                                 ->schema([
-                                                    Forms\Components\TimePicker::make('starting_time')
-                                                        ->required()
+                                                    TimePicker::make('starting_time')
                                                         ->label('Starting Time')
-                                                        ->native(false)
                                                         ->prefixIcon('heroicon-m-clock')
-                                                        ->withoutSeconds()
+                                                        ->seconds(false)
+                                                        ->required()
+                                                        ->displayFormat('h:i A')
                                                         ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                                             $endingTime = $get('ending_time');
                                                             if ($endingTime && $state >= $endingTime) {
@@ -599,12 +604,12 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                                             }
                                                         }),
 
-                                                    Forms\Components\TimePicker::make('ending_time')
-                                                        ->required()
+                                                    TimePicker::make('ending_time')
                                                         ->label('Ending Time')
-                                                        ->native(false)
                                                         ->prefixIcon('heroicon-m-clock')
-                                                        ->withoutSeconds()
+                                                        ->seconds(false)
+                                                        ->required()
+                                                        ->displayFormat('h:i A')
                                                         ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                                             $startingTime = $get('starting_time');
                                                             if ($startingTime && $startingTime >= $state) {
@@ -725,8 +730,8 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                             ->map(function ($leave) {
                                                 $duration = match ($leave->type) {
                                                     'regular' => \Carbon\Carbon::parse($leave->starting_date)->diffInDays(\Carbon\Carbon::parse($leave->ending_date)) + 1 . ' day(s) (' .
-                                                        \Carbon\Carbon::parse($leave->starting_date)->format('M d, Y') . ' - ' .
-                                                        \Carbon\Carbon::parse($leave->ending_date)->format('M d, Y') . ')',
+                                                    \Carbon\Carbon::parse($leave->starting_date)->format('M d, Y') . ' - ' .
+                                                    \Carbon\Carbon::parse($leave->ending_date)->format('M d, Y') . ')',
                                                     'half_day' => 'Half day on ' . \Carbon\Carbon::parse($leave->starting_date)->format('M d, Y'),
                                                     'short_leave' => 'Short leave on ' . \Carbon\Carbon::parse($leave->starting_date)->format('M d, Y'),
                                                     default => '',
@@ -787,9 +792,9 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                         // Get eligible leave types
                                         $leaveTypes = Filament::getTenant()->leaveTypes()
                                             ->where(function ($query) use ($applyOn) {
-                                                $query->where('apply_on', 'all')
-                                                    ->orWhere('apply_on', $applyOn);
-                                            })
+                                            $query->where('apply_on', 'all')
+                                                ->orWhere('apply_on', $applyOn);
+                                        })
                                             ->get();
 
                                         $now = now();
@@ -839,6 +844,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
 
                         Select::make('approval_status')
                             ->label('Approval')
+                            ->required()
                             ->options(function (Forms\Get $get) {
                                 $leaveId = $get('id');
                                 if (!$leaveId) {
@@ -869,7 +875,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
 
                                 // Standard approval flow for other leave requests
                                 $currentUserRoleId = Auth::user()->roles->first()->id ?? null;
-                                $currentLevel = (int)($leave->leaveLogs()->max('level') ?? 0);
+                                $currentLevel = (int) ($leave->leaveLogs()->max('level') ?? 0);
                                 $currentLevel = $currentLevel === 0 ? 1 : $currentLevel;
 
                                 // Get the approval steps for the current level for this specific user's leave
@@ -896,13 +902,13 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                 // Determine the options based on permission
                                 if ($permission === 'recommend') {
                                     return [
-                                        'forwarded' => 'Forward Leave',
-                                        'rejected' => 'Reject Leave',
+                                        'forwarded' => 'Forward',
+                                        'rejected' => 'Reject',
                                     ];
                                 } elseif ($permission === 'approve') {
                                     return [
-                                        'approved' => 'Approve Leave',
-                                        'rejected' => 'Reject Leave',
+                                        'approved' => 'Approve',
+                                        'rejected' => 'Reject',
                                     ];
                                 }
 
@@ -935,7 +941,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                         ->pluck('role_id')
                                         ->toArray();
 
-                                    return !in_array($currentUserRoleId, $approvalSteps); // Disable if user role isn't in the hierarchy
+                                    return !in_array($currentUserRoleId, $approvalSteps);
                                 }
 
                                 // Standard approval flow: Check if the current user is authorized to approve at the current level
@@ -945,7 +951,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                 }
 
                                 $currentUserRoleId = $userRole->id;
-                                $currentLevel = (int)($leave->leaveLogs()->max('level') ?? 0);
+                                $currentLevel = (int) ($leave->leaveLogs()->max('level') ?? 0);
                                 $currentLevel = $currentLevel === 0 ? 1 : $currentLevel;
 
                                 // Check if the user is authorized to approve at the current level for this specific user's leave
@@ -994,7 +1000,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                                 }
 
                                 $currentUserRoleId = $userRole->id;
-                                $currentLevel = (int)($leave->leaveLogs()->max('level') ?? 0);
+                                $currentLevel = (int) ($leave->leaveLogs()->max('level') ?? 0);
                                 $currentLevel = $currentLevel === 0 ? 1 : $currentLevel;
 
                                 // Check if the current user is authorized to approve at the current level for this specific user's leave
@@ -1056,7 +1062,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
         }
         $currentUserRoleId = $userRole->id;
 
-        $levelForAction = (int)($leave->leaveLogs()->max('level') ?? 0);
+        $levelForAction = (int) ($leave->leaveLogs()->max('level') ?? 0);
 
         // Check if the current user's role is in the approval hierarchy for this leave's user at the correct level.
         $isAuthorized = DB::table('approval_steps')
@@ -1081,55 +1087,47 @@ class LeaveResource extends Resource implements HasKnowledgeBase
             ->columns([
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Name')
-                    ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('type')
-                    ->label('Period')
-                    ->badge()
-                    ->formatStateUsing(
-                        fn(string $state): string =>
-                        Str::of($state)->replace('_', ' ')->title()
-                    )
-                    ->color('info'),
+                Tables\Columns\TextColumn::make('duration')
+                    ->label('Duration')
+                    ->getStateUsing(function ($record) {
+                        if ($record->type === 'regular') {
+                            $start = Carbon::parse($record->starting_date);
+                            $end = Carbon::parse($record->ending_date);
+                            $days = $start->diffInDays($end) + 1;
+                            return "{$days} Full Day" . ($days > 1 ? 's' : '');
+                        }
+                        if ($record->type === 'half_day') {
+                            return 'Half Day';
+                        }
+                        if ($record->type === 'short_leave') {
+                            $startTime = Carbon::parse($record->starting_time);
+                            $endTime = Carbon::parse($record->ending_time);
+                            $minutes = round($startTime->diffInMinutes($endTime));
+                            return "{$minutes} minutes";
+                        }
+                        return 'N/A';
+                    })->badge()
+                    ->color('gray'),
                 Tables\Columns\TextColumn::make('leave_type')
                     ->label('Type')
                     ->badge()
-                    ->color('warning'),
+                    ->color('warning')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('paid')
                     ->badge()
                     ->formatStateUsing(fn(bool $state): string => $state ? 'Paid' : 'Unpaid')
-                    ->color(fn(bool $state): string => $state ? 'success' : 'danger'),
-                Tables\Columns\TextColumn::make('start')
-                    ->label('Starting Time')
+                    ->color(fn(bool $state): string => $state ? 'success' : 'danger')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('starting_time')
+                    ->label('Date')
                     ->getStateUsing(function ($record) {
                         $date = $record->starting_date
-                            ? \Carbon\Carbon::parse($record->starting_date)->format('Y-m-d')
+                            ? \Carbon\Carbon::parse($record->starting_date)->format('M d, Y')
                             : null;
 
                         $time = $record->starting_time
-                            ? \Carbon\Carbon::parse($record->starting_time)->format('H:i A')
-                            : null;
-
-                        if ($date && $time) {
-                            return "$date $time";
-                        }
-
-                        if ($date) {
-                            return $date;
-                        }
-
-                        return '-'; // fallback when neither is present
-                    }),
-
-                Tables\Columns\TextColumn::make('end')
-                    ->label('Ending Time')
-                    ->getStateUsing(function ($record) {
-                        $date = $record->ending_date
-                            ? \Carbon\Carbon::parse($record->ending_date)->format('Y-m-d')
-                            : null;
-
-                        $time = $record->ending_time
-                            ? \Carbon\Carbon::parse($record->ending_time)->format('H:i A')
+                            ? \Carbon\Carbon::parse($record->starting_time)->format('h:i A')
                             : null;
 
                         if ($date && $time) {
@@ -1142,48 +1140,27 @@ class LeaveResource extends Resource implements HasKnowledgeBase
 
                         return '-';
                     })
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('duration')
-                    ->label('Duration')
-                    ->getStateUsing(function ($record) {
-                        if ($record->type === 'regular') {
-                            $start = Carbon::parse($record->starting_date);
-                            $end   = Carbon::parse($record->ending_date);
-                            $days  = $start->diffInDays($end) + 1;
-                            return "{$days} Full Day" . ($days > 1 ? 's' : '');
-                        }
-                        if ($record->type === 'half_day') {
-                            return $record->half_day_timing . ' Half Day';
-                        }
-                        if ($record->type === 'short_leave') {
-                            $startTime = Carbon::parse($record->starting_time);
-                            $endTime   = Carbon::parse($record->ending_time);
-                            $minutes   = round($startTime->diffInMinutes($endTime));
-                            return "{$minutes} minutes";
-                        }
-                        return 'N/A';
-                    })->badge()
-                    ->color('gray'),
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('leave_reason')
-                    ->limit(40),
+                    ->limit(40)
+                    ->tooltip(fn($record) => $record->leave_reason),
+
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Created On')
+                    ->date()
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('status')
                     ->description(
                         fn(Leave $record): string =>
                         Str::words($record->rejection_reason ?? '', 5, '...')
                     )
                     ->formatStateUsing(function ($state, $record) {
-                        $latestLog = $record->leaveLogs()->latest('created_at')->first();
-
-                        if ($latestLog) {
-                            $roleName = $latestLog->role->name ?? 'Unknown Role';
-                            $status = ucfirst($latestLog->status ?? 'No status');
-
-                            return "{$roleName}: {$status}";
-                        }
-
-                        return 'No history';
+                        return self::leaveStatus($state, $record);
                     })
                     ->badge()
+                    ->sortable()
                     ->color(
                         fn(string $state): string =>
                         match ($state) {
@@ -1193,50 +1170,131 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                             default => 'warning',
                         }
                     ),
-
-                Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->sortable(),
             ])
-            ->searchPlaceholder('Search Employee')
             ->filters([
-                DateRangeFilter::make('created_at')
-                    ->label('Date')
-                    ->icon('heroicon-o-arrow-path')
-                    ->startDate(Carbon::now()->startOfMonth())
-                    ->endDate(Carbon::now())
-                    ->maxDate(Carbon::now()),
+                Tables\Filters\SelectFilter::make('user_id')
+                    ->placeholder('Employee')
+                    ->searchable()
+                    ->options(fn() => Filament::getTenant()->filteredUsers()->where('active', 1)->where('attendance_config', 1)->pluck('name', 'id'))->indicateUsing(
+                        fn() => null
+                    ),
+
+
                 Tables\Filters\SelectFilter::make('type')
-                    ->label('Leave Type')
+                    ->placeholder('Leave Type')
+                    ->searchable()
                     ->options([
-                        'regular' => 'Regular Leave',
+                        'regular' => 'Full Day Leave',
                         'half_day' => 'Half Day',
                         'short_leave' => 'Short Leave',
-                    ]),
+                    ])->indicateUsing(
+                        fn() => null
+                    ),
+                Tables\Filters\SelectFilter::make('paid')
+                    ->placeholder('Paid/Unpaid')
+                    ->searchable()
+                    ->options([
+                        1 => 'Paid',
+                        0 => 'Unpaid',
+                    ])->indicateUsing(
+                        fn() => null
+                    ),
                 Tables\Filters\SelectFilter::make('status')
-                    ->label('Status')
+                    ->placeholder('Status')
+                    ->searchable()
                     ->options([
                         'pending' => 'Pending',
                         'approved' => 'Approved',
                         'rejected' => 'Rejected',
                         'pending_cancellation' => 'Pending Cancellation',
-                    ]),
-                Tables\Filters\SelectFilter::make('paid')
-                    ->label('Payment Status')
-                    ->options([
-                        1 => 'Paid',
-                        0 => 'Unpaid',
-                    ]),
+                    ])->indicateUsing(
+                        fn() => null
+                    ),
+                DateRangeFilter::make('starting_date')
+                    ->icon('heroicon-o-arrow-path')
+                    ->startDate(Carbon::now()->startOfMonth())
+                    ->endDate(Carbon::now()->endOfMonth())
+                    ->maxDate(Carbon::now()->endOfMonth())->indicateUsing(
+                        fn() => null
+                    ),
 
-            ])
+            ], layout: FiltersLayout::AboveContent)
             ->defaultSort('created_at', 'desc')
             ->actions([
                 Tables\Actions\ViewAction::make()
-                    ->modalHeading('')
-                    ->visible(fn($record) => in_array($record->status, ['cancelled', 'approved', 'rejected'])),
-                Tables\Actions\EditAction::make()
-                    ->visible(fn($record) => in_array($record->status, ['pending', 'forwarded'])),
+                    ->url(fn(Leave $record): string => static::getUrl('edit', ['record' => $record]))
+                    ->visible(fn($record) => in_array($record->status, ['cancelled', 'approved', 'rejected', 'rejected_cancellation'])),
+                Tables\Actions\Action::make('manage')
+                    ->icon('heroicon-s-pencil-square')
+                    ->url(
+                        fn(Leave $record): string =>
+                        static::getUrl('edit', ['record' => $record]) .
+                        (request()->getQueryString() ? '?' . request()->getQueryString() : '')
+                    )
+                    ->visible(fn($record) => in_array($record->status, ['pending', 'forwarded', 'pending_cancellation'])),
+                Tables\Actions\Action::make('approve')
+                    ->label('Approve')
+                    ->color('success')
+                    ->icon('heroicon-o-check-circle')
+                    ->action(function (Leave $record) {
+                        $pendingLog = $record->leaveLogs()->where('status', 'pending')->orderBy('level', 'asc')->first();
+                        if (!$pendingLog)
+                            return;
+
+                        $currentUser = Auth::user();
+                        $currentRole = $currentUser->roles->first();
+                        $currentLevel = $pendingLog->level;
+
+                        // Determine permission (recommend/approve)
+                        $approvalStep = DB::table('approval_steps')
+                            ->where('team_id', Filament::getTenant()->id)
+                            ->where('user_id', $record->user_id)
+                            ->where('level', $currentLevel)
+                            ->where('role_id', $currentRole->id)
+                            ->first();
+
+                        $actionStatus = ($approvalStep && $approvalStep->permission === 'approve') ? 'approved' : 'forwarded';
+
+                        // Update the pending log
+                        $pendingLog->update([
+                            'role_id' => $currentRole->id,
+                            'status' => $actionStatus,
+                        ]);
+
+                        // Check for next level
+                        $nextLevel = $currentLevel + 1;
+                        $nextStep = DB::table('approval_steps')
+                            ->where('team_id', Filament::getTenant()->id)
+                            ->where('user_id', $record->user_id)
+                            ->where('level', $nextLevel)
+                            ->first();
+
+                        if ($nextStep && $actionStatus === 'forwarded') {
+                            $record->update(['status' => 'forwarded']);
+                            LeaveLog::create([
+                                'leave_id' => $record->id,
+                                'role_id' => $nextStep->role_id,
+                                'level' => $nextLevel,
+                                'status' => 'pending',
+                            ]);
+                        } else {
+                            $record->update(['status' => 'approved']);
+                        }
+                    })
+                    ->visible(function (Leave $record): bool {
+                        $user = Auth::user();
+                        if (!$user->hasRole(['Admin', 'CEO', 'AMS Manager']) && !$user->is_approver) {
+                            return false;
+                        }
+                        if (!in_array($record->status, ['pending', 'forwarded'])) {
+                            return false;
+                        }
+                        $pendingLog = $record->leaveLogs()->where('status', 'pending')->orderBy('level', 'asc')->first();
+                        if (!$pendingLog) {
+                            return false;
+                        }
+                        return $pendingLog->role_id === $user->roles->first()->id;
+                    }),
                 Tables\Actions\DeleteAction::make()
                     ->visible(fn($record) => $record->status === 'pending' && Auth::id() === $record->user_id),
                 Tables\Actions\Action::make('cancel')
@@ -1257,10 +1315,10 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                         // Store the cancellation log with the reason
                         $record->leaveLogs()->create([
                             'leave_id' => $record->id,
-                            'role_id'  => $roleId,
-                            'status'   => 'Pending Cancellation',
-                            'level'    => ($record->leaveLogs()->max('level') ?? 0) + 1,
-                            'remarks'  => $cancellationReason,  // Store cancellation reason in remarks
+                            'role_id' => $roleId,
+                            'status' => 'Pending Cancellation',
+                            'level' => ($record->leaveLogs()->max('level') ?? 0) + 1,
+                            'remarks' => $cancellationReason,  // Store cancellation reason in remarks
                         ]);
                     })
                     ->requiresConfirmation(function (Tables\Actions\Action $action, $record) {
@@ -1292,7 +1350,7 @@ class LeaveResource extends Resource implements HasKnowledgeBase
                             ->maxLength(255),
                     ])
             ])
-            ->bulkActions([]);
+            ->actionsColumnLabel('Actions');
     }
 
     public static function getRelations(): array
@@ -1309,5 +1367,36 @@ class LeaveResource extends Resource implements HasKnowledgeBase
             'create' => Pages\CreateLeave::route('/create'),
             'edit' => Pages\EditLeave::route('/{record}/edit'),
         ];
+    }
+    private static function leaveStatus($state, $record): string
+    {
+        if ($record->status == 'approved') {
+            return 'Approved';
+        }
+
+        $team_id = Filament::getTenant()->id;
+        $latestLog = $record->leaveLogs()->latest('created_at')->first();
+        if ($latestLog->status == 'Pending Cancellation') {
+            return 'Pending Cancellation';
+        }
+        if ($latestLog->status == 'cancelled') {
+            return 'Cancelled';
+        }
+        if ($latestLog->status == 'rejected_cancellation') {
+            return 'Rejected Cancellation';
+        }
+        // Fetch hierarchy steps
+        $hierarchyStep = DB::table('approval_steps')
+            ->where('team_id', $team_id)
+            ->where('user_id', $record->user_id)
+            ->where('level', $latestLog->level)
+            ->orderBy('level', 'asc')
+            ->first();
+        $role = Role::find($hierarchyStep->role_id);
+        if ($latestLog) {
+            $roleName = $role->name ?? 'Unknown Role';
+            return "{$roleName}";
+        }
+        return 'N/A';
     }
 }

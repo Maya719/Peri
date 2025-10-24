@@ -2,8 +2,10 @@
 
 namespace App\Filament\Client\Resources;
 
+use App\Facades\Helper;
 use App\Filament\Client\Resources\DeviceResource\Pages;
 use App\Models\Device;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Card;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\TextInput;
@@ -67,24 +69,26 @@ class DeviceResource extends Resource implements HasKnowledgeBase
     public static function table(Table $table): Table
     {
         return $table
+            ->poll(5)
             ->columns([
                 Tables\Columns\TextColumn::make('device_name')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('device_ip_address')->label('IP Address')->searchable(),
                 Tables\Columns\TextColumn::make('device_external_port')->label('External Port')->searchable(),
 
             ])
-            ->filters([
-                //
-            ])
+            ->searchPlaceholder('Search Device')
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->after(function () {
+                        $tenant = Filament::getTenant();
+                        $subscription = $tenant->activePlanSubscriptions()->first();
+                        if ($subscription) {
+                            $subscription->reduceFeatureUsage('biometric-devices');
+                        }
+                    }),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->actionsColumnLabel('Actions');
     }
 
     public static function getPages(): array
@@ -98,12 +102,12 @@ class DeviceResource extends Resource implements HasKnowledgeBase
 
     public static function canViewAny(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin'));
+        return Auth::check() && (Auth::user()->hasRole('Admin')) && Helper::has_feature('biometric-devices');
     }
 
     public static function canCreate(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin'));
+        return Auth::check() && (Auth::user()->hasRole('Admin')) && Helper::is_module_allowed('biometric-devices');
     }
 
     public static function canEdit($record): bool

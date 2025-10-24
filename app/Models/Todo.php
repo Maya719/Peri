@@ -16,7 +16,6 @@ class Todo extends Model
         'team_id',
         'task',
         'is_completed',
-        'deadline',
         'description',
     ];
 

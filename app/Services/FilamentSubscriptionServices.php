@@ -2,9 +2,7 @@
 
 namespace App\Services;
 
-use App\Facades\FilamentNotify;
-use App\Models\Team;
-use App\Models\User;
+use Carbon\Carbon;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Collection;
@@ -29,7 +27,6 @@ class FilamentSubscriptionServices
     public function __construct()
     {
         $this->currentPanel = Filament::getCurrentPanel()->getId();
-
         $this->beforeSubscription = fn(array $data) => null;
         $this->beforeRenew = fn(array $data) => null;
         $this->beforeCanceling = fn(array $data) => null;
@@ -38,6 +35,7 @@ class FilamentSubscriptionServices
         $this->afterRenew = fn(array $data) => null;
         $this->afterCanceling = fn(array $data) => null;
         $this->afterChange = fn(array $data) => null;
+
     }
 
     public function getAfterRenew(): \Closure

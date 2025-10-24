@@ -2,6 +2,7 @@
 
 namespace App\Filament\Client\Resources;
 
+use App\Facades\Helper;
 use App\Filament\Client\Resources\SalaryComponentResource\Pages;
 use App\Models\SalaryComponent;
 use App\Models\TaxSlabs;
@@ -60,6 +61,14 @@ class SalaryComponentResource extends Resource implements HasKnowledgeBase
                                     ->schema([
                                         Forms\Components\Group::make()
                                             ->schema([
+                                                Forms\Components\Select::make('component_type')
+                                                    ->label('Component Type')
+                                                    ->options([
+                                                        'earning' => 'Earning',
+                                                        'deduction' => 'Deduction',
+                                                    ])
+                                                    ->required()
+                                                    ->live(),
                                                 Select::make('salary_component_category_id')
                                                     ->label('Category')
                                                     ->relationship('category', 'name', function ($query) use ($team_id) {
@@ -78,34 +87,15 @@ class SalaryComponentResource extends Resource implements HasKnowledgeBase
                                                     ])
                                                     ->preload()
                                                     ->required(),
-                                                Forms\Components\Select::make('component_type')
-                                                    ->label('Component Type')
-                                                    ->options([
-                                                        'earning' => 'Earning',
-                                                        'deduction' => 'Deduction',
-                                                    ])
-                                                    ->required()
-                                                    ->live(),
-                                                Forms\Components\TextInput::make('name')
+                                                Forms\Components\TextInput::make('title')
                                                     ->label('Title')
                                                     ->required()
-                                                    ->hintIcon('heroicon-m-question-mark-circle', tooltip: 'A unique name to identify this component.')
-                                                    ->maxLength(40)
-                                                    ->rule(function ($record) {
-                                                        return Rule::unique('salary_components', 'name')
-                                                            ->where('team_id', Filament::getTenant()->id)
-                                                            ->ignore($record?->id);
-                                                    }),
-                                                Forms\Components\TextInput::make('title')
-                                                    ->label('Title on Payslip')
-                                                    ->required()
-                                                    ->hintIcon('heroicon-m-question-mark-circle', tooltip: 'This name will be displayed on the payslip.')
                                                     ->maxLength(40),
                                                 Forms\Components\Radio::make('value_type')
                                                     ->label('Calculation Type')
                                                     ->options([
                                                         'number' => 'Fixed Amount',
-                                                        'percentage' => 'Percentage of Base Salary',
+                                                        'percentage' => 'Percentage of Gross Salary',
                                                     ])
                                                     ->required()
                                                     ->live()
@@ -123,14 +113,8 @@ class SalaryComponentResource extends Resource implements HasKnowledgeBase
                                                     ->columnSpan('full'),
                                                 Forms\Components\Checkbox::make('tax_status')
                                                     ->label('Mark as taxable')
-                                                    ->hidden(fn(Get $get): bool => $get('component_type') === 'deduction')
                                                     ->formatStateUsing(fn(?string $state): bool => $state === 'taxable')
-                                                    ->dehydrateStateUsing(function ($state, Get $get): string {
-                                                        if ($get('component_type') === 'deduction') {
-                                                            return 'non-taxable';
-                                                        }
-                                                        return $state ? 'taxable' : 'non-taxable';
-                                                    })
+                                                    ->dehydrateStateUsing(fn(bool $state): string => $state ? 'taxable' : 'non-taxable')
                                                     ->default(true),
                                             ])->columnSpan(1),
 
@@ -168,17 +152,27 @@ class SalaryComponentResource extends Resource implements HasKnowledgeBase
 
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
+                Tables\Columns\TextColumn::make('title')
                     ->label('Title')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('category.name')
                     ->label('Category'),
                 Tables\Columns\TextColumn::make('component_type')
                     ->label('Type')
+                    ->formatStateUsing(fn(string $state): string => ucfirst($state))
                     ->badge()
                     ->color(fn(string $state): string => match ($state) {
                         'earning' => 'success',
                         'deduction' => 'danger',
+                        default => 'gray',
+                    }),
+                Tables\Columns\TextColumn::make('tax_status')
+                    ->label('Tax Status')
+                    ->badge()
+                    ->formatStateUsing(fn(string $state): string => ucfirst($state))
+                    ->color(fn(string $state): string => match ($state) {
+                        'taxable' => 'warning',
+                        'non-taxable' => 'info',
                         default => 'gray',
                     }),
                 Tables\Columns\TextColumn::make('amount')
@@ -253,6 +247,7 @@ class SalaryComponentResource extends Resource implements HasKnowledgeBase
                             ->send();
                     }),
             ])
+            ->actionsColumnLabel('Actions')
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
@@ -273,7 +268,8 @@ class SalaryComponentResource extends Resource implements HasKnowledgeBase
 
     public static function canViewAny(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin'));
+        return Auth::check() && (Auth::user()->hasRole('Admin') || Auth::user()->hasRole('Payroll Manager') ||
+            Auth::user()->can('payroll.manage')) && Helper::has_feature('payroll');
     }
 
     public static function canCreate(): bool

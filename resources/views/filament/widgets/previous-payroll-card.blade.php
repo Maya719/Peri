@@ -4,7 +4,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
             <div class="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-4">
                 <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">
-                    Month - {{ $this->getViewData()['payRunMonthYear'] }}
+                    Payroll Details
                 </h2>
             </div>
             <div
@@ -83,8 +83,6 @@
                         </div>
                     @endforeach
                 </div>
-            @else
-                <p class="text-gray-500 dark:text-gray-400">No fund data available for this period.</p>
             @endif
         @else
             <div class="p-4 text-center text-gray-500 dark:text-gray-400">

@@ -1,0 +1,269 @@
+
+<x-filament::section class="lg:col-span-2">
+<x-slot name="heading">
+Billing History
+</x-slot>
+<div class="overflow-x-auto">
+<table class="w-full text-base text-left text-gray-600 dark:text-gray-400">
+<thead class="text-sm text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
+<tr>
+<th class="px-6 py-4 font-medium">Date</th>
+<th class="px-6 py-4 font-medium">Description</th>
+<th class="px-6 py-4 font-medium">Amount</th>
+<th class="px-6 py-4 font-medium">Status</th>
+</tr>
+</thead>
+<tbody>
+<tr
+class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+<td class="px-6 py-4 font-medium">Sep 15, 2023</td>
+<td class="px-6 py-4">Pro Plan - Monthly</td>
+<td class="px-6 py-4 font-medium">$19.99</td>
+<td class="px-6 py-4 text-green-600 dark:text-green-500 font-medium">Paid</td>
+</tr>
+<tr
+class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+<td class="px-6 py-4 font-medium">Aug 15, 2023</td>
+<td class="px-6 py-4">Pro Plan - Monthly</td>
+<td class="px-6 py-4 font-medium">$19.99</td>
+<td class="px-6 py-4 text-green-600 dark:text-green-500 font-medium">Paid</td>
+</tr>
+<tr
+class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+<td class="px-6 py-4 font-medium">Jul 15, 2023</td>
+<td class="px-6 py-4">Pro Plan - Monthly</td>
+<td class="px-6 py-4 font-medium">$19.99</td>
+<td class="px-6 py-4 text-green-600 dark:text-green-500 font-medium">Paid</td>
+</tr>
+</tbody>
+</table>
+</div>
+</x-filament::section>
+
+<?php
+
+namespace App\Livewire;
+
+use App\Events\AfterChangePlan;
+use App\Events\AfterRenewPlan;
+use App\Events\AfterSubscribePlan;
+use App\Facades\FilamentSubscriptions;
+use App\Models\Payment;
+use App\Models\PaymentGateway;
+use App\Models\Plan;
+use App\Services\Drivers\StripeV3;
+use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
+use Livewire\Component;
+use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Livewire\Attributes\Computed;
+
+class ProcessPayment extends Component implements HasForms
+{
+    use InteractsWithForms;
+
+    public $selectedPaymentMethod;
+    public $trx;
+    public $couponCode = '';
+    public Payment $payment;
+    public $userIp;
+    public $selectedGateway = 'StripeV3';
+    public $paymentMethods = [];
+    public $taxesFees;
+    public $basePrice;
+    public Plan $plan;
+    public $tenant;
+    public $currentSubscription;
+    public $planName;
+    public $customer_id;
+
+
+    public function mount(?string $trx = null): void
+    {
+        $this->trx = $trx;
+        $this->payment = Payment::where('trx', $trx)->where('status', 0)->firstOrFail();
+        $this->userIp = request()->ip();
+        $this->basePrice = $this->payment->amount;
+        $this->tenant = Filament::getTenant();
+        $this->plan = Plan::find($this->payment->model_id);
+        $this->planName = $this->plan->name;
+        $this->currentSubscription = $this->tenant->planSubscriptions()->first();
+
+        $this->customer_id = $this->tenant->payment_methods()->first()?->stripe_customer_id;
+        if ($this->customer_id) {
+            $this->paymentMethods = StripeV3::getPaymentMethods($this->customer_id);
+            $defaultMethod = collect($this->paymentMethods)->firstWhere('is_default', true);
+            $this->selectedPaymentMethod = $defaultMethod['id'] ?? $this->paymentMethods[0]['id'] ?? null;
+        }
+
+        $this->calculateFee();
+    }
+
+    protected function getFormSchema(): array
+    {
+        if (!empty($this->paymentMethods)) {
+            return [
+                Select::make('selectedPaymentMethod')
+                    ->label('Payment method')
+                    ->options(
+                        collect($this->paymentMethods)->mapWithKeys(function ($method) {
+                            $label = $method['brand'];
+                            if ($method['last4']) {
+                                $label .= ' •••• ' . $method['last4'];
+                            }
+                            if ($method['exp_month'] && $method['exp_year']) {
+                                $label .= ' Expires ' . $method['exp_month'] . '/' . $method['exp_year'];
+                            }
+                            if ($method['is_default']) {
+                                $label .= ' (Default)';
+                            }
+                            return [$method['id'] => $label];
+                        })
+                    )
+                    ->searchable()
+                    ->required(),
+            ];
+        }
+        return [
+            Radio::make('selectedGateway')
+                ->label('Select Payment Gateway')
+                ->options($this->paymentGateways)
+                ->live(),
+        ];
+    }
+
+    #[Computed(persist: true)]
+    public function paymentGateways()
+    {
+        return Cache::remember('payment_gateways', now()->addDay(), function () {
+            return PaymentGateway::where('status', 1)
+                ->get()
+                ->mapWithKeys(fn($p) => [$p->alias => $p->name])
+                ->toArray();
+        });
+    }
+
+    #[Computed]
+    public function selectedGatewayData()
+    {
+        return PaymentGateway::where('status', 1)->where('alias', $this->selectedGateway)->first();
+    }
+
+    public function getTotalProperty()
+    {
+        return $this->basePrice + $this->taxesFees;
+    }
+
+    public function completePayment()
+    {
+        $this->form->getState();
+        $selectedGateway = $this->selectedGatewayData;
+        $this->payment->method_name = $selectedGateway->name;
+        $this->payment->method_id = $selectedGateway->id;
+        $this->payment->amount = $this->basePrice;
+        if (!empty($this->paymentMethods)) {
+            StripeV3::processIntent($this->payment, $this->customer_id, $this->selectedPaymentMethod);
+        }
+        $callback = call_user_func($this->request, $this->payment);
+        $payment = FilamentPayments::pay(data: $callback);
+        if ($this->currentSubscription && !$this->currentSubscription->active()) {
+            $this->handleSubscriptionRenewal();
+        } elseif ($this->currentSubscription) {
+            $this->handleSubscriptionChange();
+        } else {
+            $this->handleNewSubscription();
+        }
+    }
+
+    protected function handleSubscriptionRenewal()
+    {
+        $this->payment->detail = "Subscription Renewed";
+        $this->payment->save();
+
+        Event::dispatch(new AfterRenewPlan([
+            "old" => $this->currentSubscription->plan,
+            "new" => $this->plan,
+            "subscription" => $this->currentSubscription
+        ]));
+
+        return call_user_func(FilamentSubscriptions::getAfterRenew(), [
+            "old" => $this->currentSubscription->plan,
+            "new" => $this->plan,
+            "subscription" => $this->currentSubscription,
+            "team_id" => $this->tenant->id
+        ]);
+    }
+
+    protected function handleSubscriptionChange()
+    {
+        $this->payment->detail = "Subscription Changed";
+        $this->payment->save();
+
+        Event::dispatch(new AfterChangePlan([
+            "old" => $this->currentSubscription->plan,
+            "new" => $this->plan,
+            "subscription" => $this->currentSubscription
+        ]));
+
+        return call_user_func(FilamentSubscriptions::getAfterChange(), [
+            "old" => $this->currentSubscription->plan,
+            "new" => $this->plan,
+            "subscription" => $this->currentSubscription,
+            "team_id" => $this->tenant->id
+        ]);
+    }
+
+    protected function handleNewSubscription()
+    {
+        $this->payment->detail = "Subscription";
+        $this->payment->save();
+
+        Event::dispatch(new AfterSubscribePlan([
+            "old" => null,
+            "new" => $this->plan,
+            "subscription" => null
+        ]));
+
+        return call_user_func(FilamentSubscriptions::getAfterSubscription(), [
+            "old" => null,
+            "new" => $this->plan,
+            "subscription" => null,
+            "team_id" => $this->tenant->id
+        ]);
+    }
+
+
+    public function calculateFee()
+    {
+        if ($selectedGateway = $this->selectedGatewayData) {
+            $supportedCurrencies = $selectedGateway->supported_currencies;
+            $currencyCode = $this->payment->method_currency;
+            $currencyData = collect($supportedCurrencies)->firstWhere('currency', $currencyCode);
+
+            if ($currencyData) {
+                $fixedFee = (float)$currencyData['fixed_charge'];
+                $percentageFee = (float)$currencyData['percent_charge'];
+                $feeAmount = $fixedFee + ($this->payment->amount * $percentageFee / 100);
+                $this->taxesFees = $feeAmount;
+                $this->payment->taxesFees = $feeAmount;
+                $this->payment->final_amount = $this->payment->amount + $feeAmount;
+            }
+        }
+    }
+
+
+
+    public function updatedSelectedGateway()
+    {
+        $this->calculateFee();
+    }
+
+    public function render()
+    {
+        return view('livewire.process-payment');
+    }
+}

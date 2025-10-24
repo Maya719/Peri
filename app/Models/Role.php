@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Permission\Models\Role as SpatieRole;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -21,7 +22,7 @@ class Role extends SpatieRole
      * @param mixed|null $adminId
      * @return Builder
      */
-    public function team()
+    public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class);
     }

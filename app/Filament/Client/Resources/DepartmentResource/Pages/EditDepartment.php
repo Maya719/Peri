@@ -13,7 +13,14 @@ class EditDepartment extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()
+                ->after(function () {
+                    $tenant = \Filament\Facades\Filament::getTenant();
+                    $subscription = $tenant->activePlanSubscriptions()->first();
+                    if ($subscription) {
+                        $subscription->reduceFeatureUsage('departments');
+                    }
+                }),
         ];
     }
     protected function getRedirectUrl(): string

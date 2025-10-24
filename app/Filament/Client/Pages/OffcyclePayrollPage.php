@@ -62,7 +62,7 @@ class OffcyclePayrollPage extends Page implements HasForms
         if (!$user) {
             return false;
         }
-        return $user->hasRole('Admin') || $user->can('payroll.create');
+        return $user->hasRole('Admin') || $user->can('payroll.manage');
     }
 
     public function mount(PayrollCalculationService $payrollCalculationService): void

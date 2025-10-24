@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Filament\Client\Pages\Billing;
+use App\Filament\Client\Pages\Subscriptions\Subscriptions;
 use App\Models\Notice;
 use Closure;
 use Filament\Facades\Filament;
@@ -21,14 +21,14 @@ class VerifyBillableIsSubscribed
     {
         $tenant = Filament::getTenant();
         if ($tenant && $tenant->activePlanSubscriptions()->isEmpty()) {
-            return redirect(Billing::getUrl());
+            return redirect(Subscriptions::getUrl());
         }
         return $next($request);
     }
     protected function notice(): bool
     {
         return Filament::getTenant()->notices()
-            ->where('name', 'Subscription Expiring Soon',)
+            ->where('name', 'Subscription Expiring Soon', )
             ->exists();
     }
     protected function subscriptionExpiringSoon(): bool

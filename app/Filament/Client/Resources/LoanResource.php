@@ -2,6 +2,7 @@
 
 namespace App\Filament\Client\Resources;
 
+use App\Facades\Helper;
 use App\Filament\Client\Resources\LoanResource\Pages;
 use App\Models\Loan;
 use Filament\Facades\Filament;
@@ -17,13 +18,14 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Models\PayRun;
 use Closure;
+use Filament\Forms\Components\Actions\Action;
+use Illuminate\Support\Facades\Auth;
 
 class LoanResource extends Resource
 {
     protected static ?string $model = Loan::class;
-
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-
+    protected static ?string $navigationGroup = 'Payroll Management';
+    protected static ?int $navigationSort = 3;
     protected static ?string $tenantOwnershipRelationshipName = 'team';
 
     public static function form(Form $form): Form
@@ -40,7 +42,13 @@ class LoanResource extends Resource
                                         Forms\Components\TextInput::make('loan_name')
                                             ->label('Loan Name')
                                             ->required()
-                                            ->maxLength(255),
+                                            ->hintAction(
+                                                Action::make('info')
+                                                    ->label(false)
+                                                    ->icon('heroicon-m-question-mark-circle')
+                                                    ->color('gray')
+                                                    ->tooltip('This name will appear on the employee\'s payslip.')
+                                            ),
                                         Forms\Components\Select::make('user_id')
                                             ->label('Employee')
                                             ->options(Filament::getTenant()->users()->where('active', 1)->pluck('name', 'id'))
@@ -75,9 +83,16 @@ class LoanResource extends Resource
                                             ->native(false)
                                             ->prefixIcon('heroicon-m-calendar')
                                             ->required()
+                                            ->hintAction(
+                                                Action::make('info')
+                                                    ->label(false)
+                                                    ->icon('heroicon-m-question-mark-circle')
+                                                    ->color('gray')
+                                                    ->tooltip('Monthly loan deductions occur at the time of payroll processing for that month. For example, if the January payroll is processed on January 31, the loan for January will also be deducted on that same date.')
+                                            )
                                             ->minDate(fn(Get $get) => $get('issue_date'))
-                                            ->format('Y-m-01') // Store as first day of the month
-                                            ->displayFormat('F Y') // Display only month and year
+                                            ->format('Y-m-01')
+                                            ->displayFormat('F Y')
                                             ->rules([
                                                 function (Get $get) {
                                                     return function (string $attribute, $value, \Closure $fail) use ($get) {
@@ -177,12 +192,10 @@ class LoanResource extends Resource
                     ->dateTime()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->filters([
-                //
-            ])
             ->actions([
                 Tables\Actions\EditAction::make(),
             ])
+            ->actionsColumnLabel('Actions')
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
@@ -218,5 +231,18 @@ class LoanResource extends Resource
         return DB::table('tax_slabs')
             ->where('country_id', $country)
             ->value('salary_currency') ?? '';
+    }
+
+    public static function canViewAny(): bool
+    {
+        return Auth::check() && (
+            Auth::user()->hasRole('Admin') || Auth::user()->hasRole('Payroll Manager') ||
+            Auth::user()->can('payroll.manage')
+        ) && Helper::has_feature('payroll');
+    }
+
+    public static function canCreate(): bool
+    {
+        return !Filament::getTenant()->payruns()->whereIn('status', ['draft', 'pending_approval', 'rejected'])->exists();
     }
 }

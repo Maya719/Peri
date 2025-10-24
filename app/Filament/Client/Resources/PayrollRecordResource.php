@@ -2,24 +2,18 @@
 
 namespace App\Filament\Client\Resources;
 
+use App\Facades\Helper;
 use App\Filament\Client\Resources\PayrollRecordResource\Pages;
-use App\Filament\Client\Resources\PayrollRecordResource\RelationManagers;
-use App\Models\Department;
 use App\Models\Payroll;
-use App\Models\Shift;
-use App\Models\User;
 use Carbon\Carbon;
 use Filament\Tables\Actions\ViewAction;
 use Filament\Facades\Filament;
-use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Auth;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Enums\FiltersLayout;
@@ -49,12 +43,17 @@ class PayrollRecordResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return Filament::getTenant()
+        $query = Filament::getTenant()
             ->payrolls()
             ->getQuery()
             ->with(['user.assignedDepartment.department', 'user.assignedShift.shift'])
-            ->orderByDesc('date_range_start')
-            ->visibleToCurrentUser();
+            ->orderByDesc('date_range_start');
+
+        if (Auth::user()->can('payroll.manage')) {
+            return $query;
+        }
+
+        return $query->visibleToCurrentUser();
     }
 
     public static function form(Form $form): Form
@@ -66,8 +65,11 @@ class PayrollRecordResource extends Resource
     {
         return $table
             ->columns([
+                TextColumn::make('user_id')
+                    ->label('Employee ID'),
+
                 TextColumn::make('user.name')
-                    ->label('Employee'),
+                    ->label('Name'),
 
                 TextColumn::make('user.assignedDepartment.department.name')
                     ->label('Department'),
@@ -83,6 +85,7 @@ class PayrollRecordResource extends Resource
                     ->label('Net Pay')
                     ->formatStateUsing(fn($state) => self::formatCurrency($state)),
             ])
+            ->defaultSort('user_id', 'asc')
             ->groups([
                 Group::make('date_range_start')
                     ->label('')
@@ -95,7 +98,7 @@ class PayrollRecordResource extends Resource
             ->defaultGroup('date_range_start')
             ->filters([
                 ...(Auth::user()->hasRole('Admin') ||
-                    Auth::user()->can('payroll.manageRecords') ||
+                    Auth::user()->can('payroll.manage') ||
                     Auth::user()->can('payroll.approve')
                     ? [
                         SelectFilter::make('payroll_period')
@@ -191,21 +194,12 @@ class PayrollRecordResource extends Resource
             ->actions([
                 ViewAction::make('viewPayroll')
                     ->label('View')
-                    ->slideOver()
-                    ->modalHeading('Pay Details')
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Close')
-                    ->modalContent(
-                        fn($record) =>
-                        view('livewire.view-payslip', [
-                            'payroll' => $record,
-                        ])
-                    )
+                    ->url(fn($record) => route('payslip.show', $record), shouldOpenInNewTab: true)
                     ->visible(
                         fn($record) =>
                         $record->status == 1 && (
-                            Auth::user()->hasRole('Admin') ||
-                            Auth::user()->can('payroll.manageRecords') ||
+                            Auth::user()->hasRole('Admin') || Auth::user()->hasRole('Payroll Manager') ||
+                            Auth::user()->can('payroll.manage') ||
                             Auth::user()->can('payroll.viewRecords') ||
                             Auth::user()->can('payroll.approve')
                         )
@@ -218,12 +212,14 @@ class PayrollRecordResource extends Resource
                     ->visible(
                         fn($record) =>
                         $record->status == 1 && (
-                            Auth::user()->hasRole('Admin') ||
-                            Auth::user()->can('payroll.manageRecords') ||
+                            Auth::user()->hasRole('Admin') || Auth::user()->hasRole('Payroll Manager') ||
+                            Auth::user()->can('payroll.manage') ||
                             Auth::user()->can('payroll.approve')
                         )
                     ),
-            ]);
+            ])
+            ->actionsColumnLabel('Actions')
+        ;
     }
 
     protected static function getCurrencySymbol(): string
@@ -280,7 +276,6 @@ class PayrollRecordResource extends Resource
         $monthStartDate = Carbon::parse("1 {$selectedMonth}");
 
         $payrolls = Filament::getTenant()->payrolls()
-            ->select(['id', 'user_id', 'net_payable_salary'])
             ->with(['user:id,name'])
             ->where('status', 1)
             ->whereDate('date_range_start', $monthStartDate)
@@ -299,8 +294,64 @@ class PayrollRecordResource extends Resource
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
 
-        // Set headers with styling
-        $headers = ['Employee Name', 'Net Salary'];
+        // Collect all unique earning and deduction titles to create dynamic headers
+        $earningHeaders = [];
+        $deductionHeaders = [];
+        $fundHeaders = []; // Added for individual fund names
+        $hasLoanRepayments = false; // Flag to check for loan repayments
+
+        foreach ($payrolls as $payroll) {
+            $earnings = array_merge(
+                $payroll->earnings_data['custom_earnings_applied'] ?? [],
+                $payroll->earnings_data['ad_hoc_earnings'] ?? []
+            );
+            foreach ($earnings as $earning) {
+                if (!in_array($earning['title'], $earningHeaders)) {
+                    $earningHeaders[] = $earning['title'];
+                }
+            }
+
+            $deductions = array_merge(
+                $payroll->deductions_data['custom_deductions_applied'] ?? [],
+                $payroll->deductions_data['ad_hoc_deductions'] ?? []
+            );
+            foreach ($deductions as $deduction) {
+                if (!in_array($deduction['title'], $deductionHeaders)) {
+                    $deductionHeaders[] = $deduction['title'];
+                }
+            }
+
+            // Collect unique fund names
+            foreach ($payroll->fund_data ?? [] as $fund) {
+                if (!in_array($fund['title'], $fundHeaders)) {
+                    $fundHeaders[] = $fund['title'];
+                }
+            }
+        }
+
+        // Set headers
+        $headers = [
+            'Employee Name',
+            'Gross Salary',
+            ...$deductionHeaders,
+            'Overtime Earning',
+            'Late Deduction',
+            'Absent Deduction',
+        ];
+
+        if ($hasLoanRepayments) {
+            $headers[] = 'Loan Repayment';
+        }
+
+        $headers = array_merge(
+            $headers,
+            [
+                ...$fundHeaders, // Replaced 'Fund Contributions' with individual fund headers
+                ...$earningHeaders,
+                'Tax',
+                'Net Salary',
+            ]
+        );
         $sheet->fromArray($headers, null, 'A1');
 
         // Style header row
@@ -311,26 +362,77 @@ class PayrollRecordResource extends Resource
                 'startColor' => ['rgb' => 'E2E8F0']
             ]
         ];
-        $sheet->getStyle('A1:B1')->applyFromArray($headerStyle);
+        $sheet->getStyle('A1:' . $sheet->getHighestColumn() . '1')->applyFromArray($headerStyle);
 
         // Add data
-        $data = $payrolls->map(fn($payroll) => [
-            $payroll->user->name ?? 'N/A',
-            $payroll->net_payable_salary
-        ])->toArray();
+        $data = [];
+        foreach ($payrolls as $payroll) {
+            $row = [];
+            $row[] = $payroll->user->name ?? 'N/A';
+            $row[] = $payroll->base_salary;
+
+            $deductions = array_merge(
+                $payroll->deductions_data['custom_deductions_applied'] ?? [],
+                $payroll->deductions_data['ad_hoc_deductions'] ?? []
+            );
+            $deductionsData = [];
+            foreach ($deductions as $deduction) {
+                $deductionsData[$deduction['title']] = $deduction['amount_input'] ?? $deduction['amount'] ?? 0;
+            }
+
+            foreach ($deductionHeaders as $header) {
+                $row[] = $deductionsData[$header] ?? 0;
+            }
+
+            $row[] = $payroll->attendance_data['overtime_earning_amount'] ?? 0;
+            $row[] = $payroll->attendance_data['late_minutes_deduction_amount'] ?? 0;
+            $row[] = $payroll->attendance_data['absent_deduction_amount'] ?? 0;
+
+            if ($hasLoanRepayments) { // Conditionally add loan repayment
+                $row[] = $payroll->loan_amount ?? 0;
+            }
+
+            // Individual fund amounts
+            $fundsData = [];
+            foreach ($payroll->fund_data ?? [] as $fund) {
+                $fundsData[$fund['title']] = $fund['amount_input'] ?? $fund['amount'] ?? 0;
+            }
+            foreach ($fundHeaders as $header) {
+                $row[] = $fundsData[$header] ?? 0;
+            }
+
+            $earnings = array_merge(
+                $payroll->earnings_data['custom_earnings_applied'] ?? [],
+                $payroll->earnings_data['ad_hoc_earnings'] ?? []
+            );
+            $earningsData = [];
+            foreach ($earnings as $earning) {
+                $earningsData[$earning['title']] = $earning['amount_input'] ?? $earning['amount'] ?? 0;
+            }
+
+            foreach ($earningHeaders as $header) {
+                $row[] = $earningsData[$header] ?? 0;
+            }
+
+            $row[] = (string)($payroll->tax_data['monthly_tax_calculated'] ?? 0);
+            $row[] = round($payroll->net_payable_salary);
+
+            $data[] = $row;
+        }
 
         $sheet->fromArray($data, null, 'A2');
 
         // Auto-size columns
-        foreach (range('A', 'B') as $col) {
+        foreach (range('A', $sheet->getHighestColumn()) as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        // Format salary column as currency
+        // Format currency columns
         $lastRow = count($data) + 1;
-        $sheet->getStyle("B2:B{$lastRow}")
+        $currencyFormat = '#,##0.00';
+        $sheet->getStyle("B2:" . $sheet->getHighestColumn() . $lastRow)
             ->getNumberFormat()
-            ->setFormatCode('#,##0.00');
+            ->setFormatCode($currencyFormat);
 
         $fileName = "Payroll_" . str_replace(' ', '_', $selectedMonth) . ".xlsx";
 
@@ -352,7 +454,7 @@ class PayrollRecordResource extends Resource
         $user = Auth::user();
 
         // Check permissions first (cheaper query)
-        if (!($user->hasRole('Admin') || $user->can('payroll.approve'))) {
+        if (!($user->hasRole('Admin') || $user->can('payroll.manage'))) {
             return false;
         }
 
@@ -360,7 +462,6 @@ class PayrollRecordResource extends Resource
             ->where('status', 1)
             ->exists();
     }
-
 
     public static function getDownloadAllPdfsForPeriodHeaderAction(): Action
     {
@@ -458,7 +559,9 @@ class PayrollRecordResource extends Resource
 
         // Check permissions first (cheaper query)
         if (!($user->hasRole('Admin') ||
-            $user->can('payroll.manageRecords') ||
+            Auth::user()->hasRole('CEO') ||
+            Auth::user()->hasRole('Payroll Manager') ||
+            $user->can('payroll.manage') ||
             $user->can('payroll.approve'))) {
             return false;
         }
@@ -480,9 +583,11 @@ class PayrollRecordResource extends Resource
     {
         return Auth::check() && (
             Auth::user()->hasRole('Admin') ||
+            Auth::user()->hasRole('CEO') ||
+            Auth::user()->hasRole('Payroll Manager') ||
             Auth::user()->can('payroll.viewRecords') ||
-            Auth::user()->can('payroll.manageRecords') ||
+            Auth::user()->can('payroll.manage') ||
             Auth::user()->can('payroll.approve')
-        );
+        ) && Helper::has_feature('payroll');
     }
 }

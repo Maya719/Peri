@@ -2,6 +2,7 @@
 
 namespace App\Filament\Client\Widgets;
 
+use App\Facades\Helper;
 use Filament\Facades\Filament;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Carbon;
@@ -64,7 +65,7 @@ class UserEventsList extends Widget
     public static function canView(): bool
     {
         $user = Auth::user();
-        if (($user->hasRole('Admin') || $user->hasPermissionTo('employees.manage') || $user->hasPermissionTo('employees.view')) && $user) {
+        if (($user->hasRole('Admin') || $user->hasPermissionTo('employees.manage') || $user->hasPermissionTo('employees.view')) && $user && Helper::has_feature('attendance')) {
             return true;
         }
 

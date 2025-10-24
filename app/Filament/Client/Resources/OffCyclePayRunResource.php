@@ -44,6 +44,7 @@ class OffCyclePayRunResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->emptyStateHeading('No ongoing payment')
             ->columns([
                 Tables\Columns\TextColumn::make('period_display')
                     ->label('Period')
@@ -156,6 +157,7 @@ class OffCyclePayRunResource extends Resource
                     ->requiresConfirmation()
                     ->modalDescription('Select a date to record the payment.'),
             ])
+            ->actionsColumnLabel('Actions')
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
@@ -206,6 +208,6 @@ class OffCyclePayRunResource extends Resource
         if (!$user) {
             return false;
         }
-        return $user->hasRole('Admin') || $user->can('payroll.approve') || $user->can('payroll.manageRecords');
+        return $user->hasRole('Admin') || $user->can('payroll.approve') || $user->can('payroll.manage');
     }
 }

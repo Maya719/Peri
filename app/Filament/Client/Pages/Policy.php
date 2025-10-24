@@ -2,6 +2,7 @@
 
 namespace App\Filament\Client\Pages;
 
+use App\Facades\Helper;
 use App\Models\AttendancePolicy; // Replace with your new model
 use Filament\Pages\Page;
 use Filament\Forms;
@@ -21,8 +22,6 @@ class Policy extends Page implements HasKnowledgeBase
     use Forms\Concerns\InteractsWithForms;
 
     public array $data = [];
-
-
     protected static ?string $navigationLabel = 'Attendance Policies';
     protected static string $view = 'filament.client.pages.policy';
     protected static ?string $navigationGroup = 'Settings';
@@ -32,12 +31,10 @@ class Policy extends Page implements HasKnowledgeBase
     public static function shouldRegisterNavigation(): bool
     {
         $user = Auth::user();
-
         if (!$user) {
             return false;
         }
-
-        return $user->hasRole('Admin');
+        return $user->hasRole('Admin') && Helper::has_feature('attendance-policies');
     }
 
     public static function getDocumentation(): array
@@ -314,5 +311,9 @@ class Policy extends Page implements HasKnowledgeBase
             ->title('Policies updated successfully.')
             ->success()
             ->send();
+    }
+    public static function canAccess(): bool
+    {
+        return Auth::check() && Auth::user()->hasRole('Admin') && Helper::has_feature('attendance-policies');
     }
 }

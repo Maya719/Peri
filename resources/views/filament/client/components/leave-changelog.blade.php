@@ -1,7 +1,8 @@
 @props(['changelogs'])
 
 @if ($changelogs->isNotEmpty())
-    <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+    <div
+        class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 dark:bg-gray-800">
         <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
             Change Log
         </h3>

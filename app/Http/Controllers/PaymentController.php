@@ -2,9 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\AfterChangePlan;
+use App\Events\AfterRenewPlan;
+use App\Events\AfterSubscribePlan;
+use App\Facades\FilamentSubscriptions;
 use App\Models\Payment;
+use App\Models\Plan;
+use App\Models\Subscription;
 use App\Models\Team;
+use Carbon\Carbon;
+use Filament\Notifications\Notification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Number;
 use Illuminate\Support\Str;
@@ -14,18 +24,75 @@ class PaymentController extends Controller
     public function cancel($trx)
     {
         $payment = Payment::where('trx', $trx)->where('status', 0)->firstOrFail();
-
         // Update Status
         $payment->status = 2;
         $payment->save();
-
         return redirect($payment->failed_url);
+    }
+    public function success(Request $request)
+    {
+        $trx = $request->query('trx');
+        $gateway_subscription = $request->query('subscription');
+        $payment = Payment::where('trx', $trx)->firstOrFail();
+        $tenant = Team::find($payment->team_id);
+        $plan = Plan::find($payment->model_id);
+        $old = $tenant->planSubscriptions()->first()?->plan;
+        $subscription = $tenant->planSubscriptions()->first();
+        if ($subscription)
+        {
+            if ($plan->id == $old->id)
+            {
+                Event::dispatch(new AfterRenewPlan([
+                    "old" => null,
+                    "new" => $plan,
+                    "subscription" => $subscription,
+                    "gateway_subscription" => $gateway_subscription,
+                    "team_id" => $tenant->id
+                ]));
+                return call_user_func(FilamentSubscriptions::getAfterRenew(), [
+                    "old" => null,
+                    "new" => $plan,
+                    "subscription" => $subscription,
+                    "gateway_subscription" => $gateway_subscription,
+                    "team_id" => $tenant->id
+                ]);
+            }
+            Event::dispatch(new AfterChangePlan([
+                "old" => $old,
+                "new" => $plan,
+                "subscription" => $subscription,
+                "gateway_subscription" => $gateway_subscription,
+                "team_id" => $tenant->id
+            ]));
+            return call_user_func(FilamentSubscriptions::getAfterChange(), [
+                "old" => $old,
+                "new" => $plan,
+                "subscription" => $subscription,
+                "gateway_subscription" => $gateway_subscription,
+                "team_id" => $tenant->id
+            ]);
+        }
+        Event::dispatch(new AfterSubscribePlan([
+            "old" => null,
+            "new" => $plan,
+            "subscription" => $subscription,
+            "gateway_subscription" => $gateway_subscription,
+            "team_id" => $tenant->id
+        ]));
+        return call_user_func(FilamentSubscriptions::getAfterSubscription(), [
+            "old" => null,
+            "new" => $plan,
+            "subscription" => $subscription,
+            "gateway_subscription" => $gateway_subscription,
+            "team_id" => $tenant->id
+        ]);
     }
 
     public function initiate(Request $request)
     {
         $rules = [
             'public_key' => 'required|string|max:50',
+            'plan_id' => 'required|integer|exists:plans,id',
             'currency' => 'required|string|size:3|uppercase|in:USD',
             'amount' => 'required|numeric|min:1',
             'details' => 'required|string|max:100',
@@ -37,28 +104,6 @@ class PaymentController extends Controller
             'customer.email' => 'required|email',
             'customer.mobile' => 'required|string|max:20',
             'customer.tenant' => 'required|string|max:20',
-
-            'shipping_info' => 'nullable|array',
-            'shipping_info.address_one' => 'nullable|string|max:255',
-            'shipping_info.address_two' => 'nullable|string|max:255',
-            'shipping_info.area' => 'nullable|string|max:100',
-            'shipping_info.city' => 'nullable|string|max:100',
-            'shipping_info.sub_city' => 'nullable|string|max:100',
-            'shipping_info.state' => 'nullable|string|max:100',
-            'shipping_info.postcode' => 'nullable|string|max:20',
-            'shipping_info.country' => 'nullable|string|max:100',
-            'shipping_info.others' => 'nullable|string|max:255',
-
-            'billing_info' => 'nullable|array',
-            'billing_info.address_one' => 'nullable|string|max:255',
-            'billing_info.address_two' => 'nullable|string|max:255',
-            'billing_info.area' => 'nullable|string|max:100',
-            'billing_info.city' => 'nullable|string|max:100',
-            'billing_info.sub_city' => 'nullable|string|max:100',
-            'billing_info.state' => 'nullable|string|max:100',
-            'billing_info.postcode' => 'nullable|string|max:20',
-            'billing_info.country' => 'nullable|string|max:100',
-            'billing_info.others' => 'nullable|string|max:255',
         ];
 
         $validator = Validator::make($request->all(), $rules);
@@ -98,8 +143,8 @@ class PaymentController extends Controller
 
         // Create the Payment
         $payment = Payment::create([
-            'model_id' => $team->id,
-            'model_type' => Team::class,
+            'team_id' => $team->id,
+            'plan_id' => $validated['plan_id'],
             'method_currency' => $validated['currency'],
             'amount' => $validated['amount'],
             'detail' => $validated['details'],
@@ -109,8 +154,6 @@ class PaymentController extends Controller
             'success_url' => $validated['success_url'],
             'failed_url' => $validated['cancel_url'],
             'customer' => $validated['customer'],
-            'shipping_info' => $validated['shipping_info'] ?? [],
-            'billing_info' => $validated['billing_info'] ?? [],
         ]);
 
         return response()->json(['status' => 'success', 'message' => 'Payment created successfully', 'data' => [
@@ -146,7 +189,7 @@ class PaymentController extends Controller
             ], 404);
         }
 
-        $payment = Payment::where('model_id', $team->id)->where('trx', $validated['id'])->first();
+        $payment = Payment::where('team_id', $team->id)->where('trx', $validated['id'])->first();
 
         if (!$payment) {
             return response()->json([
@@ -184,31 +227,101 @@ class PaymentController extends Controller
         ]);
     }
 
-    public function verify(Request $request, string $gatway)
+    public function verify(Request $request, string $gatewayAlias)
     {
+        $gateway = \App\Models\PaymentGateway::where('alias', $gatewayAlias)->firstOrFail();
+        $driverClass = config('filament-payments.path') . "\\".$gateway->alias;
 
-        $drivers = config('filament-payments.drivers');
-        $gaywayClass = false;
-        foreach ($drivers as $driver) {
-            if (str($driver)->contains($gatway)) {
-                $gaywayClass = app($driver);
-                break;
+        if (!class_exists($driverClass)) {
+            $drivers = config('filament-payments.drivers');
+            foreach ($drivers as $driver) {
+                if (str($driver)->contains($gateway->alias)) {
+                    $driverClass = $driver;
+                    break;
+                }
             }
         }
-        if (!$gaywayClass) {
-            $gaywayClass = app(config('filament-payments.path') . "\\" . $gatway);
+        if (!class_exists($driverClass)) {
+            abort(404, 'Payment gateway driver not found.');
         }
 
-        return $gaywayClass->verify($request);
-    }
-    
-    public function paymentSuccess()
-    {
-        return redirect('/client')->with('status', 'Subscription activated successfully.');
+        $driverInstance = new $driverClass($gateway);
+
+        return $driverInstance->verify($request);
     }
 
-    public function paymentCancel()
+    protected function handleSubscriptionRenewal($currentSubscription, $plan, $team)
     {
-        return redirect('/client')->with('status', 'Subscription payment was cancelled.');
+        Event::dispatch(new AfterRenewPlan([
+            "old" => $currentSubscription->plan,
+            "new" => $plan,
+            "subscription" => $currentSubscription,
+            "team_id" => $team->id
+        ]));
+
+        return call_user_func(FilamentSubscriptions::getAfterRenew(), [
+            "old" => $currentSubscription->plan,
+            "new" => $plan,
+            "subscription" => $currentSubscription,
+            "team_id" => $team->id
+        ]);
+    }
+
+    protected function handleSubscriptionChange($currentSubscription, $plan, $team)
+    {
+        Event::dispatch(new AfterChangePlan([
+            "old" => $currentSubscription->plan,
+            "new" => $plan,
+            "subscription" => $currentSubscription,
+            "team_id" => $team->id
+        ]));
+
+        return call_user_func(FilamentSubscriptions::getAfterChange(), [
+            "old" => $currentSubscription->plan,
+            "new" => $plan,
+            "subscription" => $currentSubscription,
+            "team_id" => $team->id
+        ]);
+    }
+
+    protected function handleNewSubscription($currentSubscription, $plan, $team)
+    {
+        Event::dispatch(new AfterSubscribePlan([
+            "old" => null,
+            "new" => $plan,
+            "subscription" => null,
+            "team_id" => $team->id
+        ]));
+
+        return call_user_func(FilamentSubscriptions::getAfterSubscription(), [
+            "old" => null,
+            "new" => $plan,
+            "subscription" => null,
+            "team_id" => $team->id
+        ]);
+    }
+
+    public function paypalSubscriptionApproved(Request $request)
+    {
+        $payment = Payment::where('trx', $request->get('trx'))->firstOrFail();
+        $tenant = Team::find($payment->team_id);
+        $plan = Plan::find($request->get('plan_id'));
+        $subscription = $tenant->planSubscriptions()->first();
+        $gateway_subscription = $request->get('subscription_id');
+
+        if ($subscription) {
+            if ($plan->id == $subscription->plan->id) {
+                $this->handleSubscriptionRenewal($subscription, $plan, $tenant);
+            } else {
+                $this->handleSubscriptionChange($subscription, $plan, $tenant);
+            }
+        } else {
+            $this->handleNewSubscription($subscription, $plan, $tenant);
+        }
+
+        $payment->status = 1;
+        $payment->save();
+
+        return response()->json(['redirect_url' => route('filament.client.pages.dashboard')]);
     }
 }

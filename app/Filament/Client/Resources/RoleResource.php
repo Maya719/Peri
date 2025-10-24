@@ -2,6 +2,7 @@
 
 namespace App\Filament\Client\Resources;
 
+use App\Facades\Helper;
 use App\Filament\Client\Resources\RoleResource\Pages;
 use App\Models\Permission;
 use App\Models\Role;
@@ -38,6 +39,7 @@ class RoleResource extends Resource implements HasKnowledgeBase
             KnowledgeBase::model()::find('roles.recommended'),
         ];
     }
+    
     public static function getNavigationBadge(): ?string
     {
         return (string) static::getEloquentQuery()
@@ -54,7 +56,6 @@ class RoleResource extends Resource implements HasKnowledgeBase
                             Section::make('')->schema([
                                 Forms\Components\TextInput::make('name')
                                     ->required()
-
                                     ->hintAction(
                                         HelpAction::forDocumentable('roles.permissions')
                                             ->label('More About Permissions')
@@ -157,18 +158,18 @@ class RoleResource extends Resource implements HasKnowledgeBase
                     ->wrap()
                     ->badge(),
             ])
-            ->filters([
-                //
-            ])
             ->actions([
                 Tables\Actions\EditAction::make()->visible(fn($record) => $record->name !== 'Admin'),
-                Tables\Actions\DeleteAction::make()->visible(fn($record) => $record->name !== 'Admin'),
+                Tables\Actions\DeleteAction::make()->visible(fn($record) => $record->name !== 'Admin')
+                    ->after(function () {
+                        $tenant = Filament::getTenant();
+                        $subscription = $tenant->activePlanSubscriptions()->first();
+                        if ($subscription) {
+                            $subscription->reduceFeatureUsage('roles');
+                        }
+                    }),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->actionsColumnLabel('Actions');
     }
 
     public static function getPages(): array
@@ -182,12 +183,12 @@ class RoleResource extends Resource implements HasKnowledgeBase
 
     public static function canViewAny(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin'));
+        return Auth::check() && (Auth::user()->hasRole('Admin')) && Helper::has_feature('roles');
     }
 
     public static function canCreate(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin'));
+        return Auth::check() && (Auth::user()->hasRole('Admin')) && Helper::is_module_allowed('roles');
     }
 
     public static function canEdit($record): bool

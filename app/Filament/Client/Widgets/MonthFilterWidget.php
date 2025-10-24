@@ -20,7 +20,9 @@ class MonthFilterWidget extends Widget
     public static function canView(): bool
     {
         $user = Auth::user();
-
+        if (!$user || !Helper::has_feature('attendance')) {
+            return false;
+        }
         if (($user->hasRole('Admin') || Helper::isAssignUsers()) && $user) {
             return false;
         }

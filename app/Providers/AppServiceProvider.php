@@ -26,7 +26,7 @@ class AppServiceProvider extends ServiceProvider
         });
         KnowledgeBasePanel::configureUsing(
             fn(KnowledgeBasePanel $panel) => $panel
-                ->viteTheme('resources\css\filament\admin\themeKB.css')
+                ->viteTheme('resources/css/filament/admin/themeKB.css')
                 ->disableAnchors()
                 ->disableBreadcrumbs()
                 ->disableTableOfContents()

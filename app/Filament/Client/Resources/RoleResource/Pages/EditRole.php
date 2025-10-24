@@ -18,10 +18,17 @@ class EditRole extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()
+                ->after(function () {
+                    $tenant = \Filament\Facades\Filament::getTenant();
+                    $subscription = $tenant->activePlanSubscriptions()->first();
+                    if ($subscription) {
+                        $subscription->reduceFeatureUsage('roles');
+                    }
+                }),
         ];
     }
-    
+
     protected function mutateFormDataBeforeSave(array $data): array
     {
         if (isset($data['assigned_users'])) {

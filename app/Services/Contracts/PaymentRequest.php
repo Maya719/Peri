@@ -109,8 +109,6 @@ class PaymentRequest
             'success_url' => $this->success_url,
             'cancel_url' => $this->cancel_url,
             'customer' => $this->customer->toArray(),
-            'shipping_info' => $this->shipping_info->toArray(),
-            'billing_info' => $this->billing_info->toArray(),
         ];
     }
 }

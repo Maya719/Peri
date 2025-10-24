@@ -90,6 +90,7 @@ class PayRunHistoryTableWidget extends BaseWidget
                         isset($record->paid_date) ? Carbon::parse($record->paid_date)->format('M d, Y') : null
                     ),
             ])
+            ->searchPlaceholder('Search Month')
             ->actions([
                 Tables\Actions\Action::make('view_record')
                     ->label('View')

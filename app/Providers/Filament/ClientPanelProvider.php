@@ -3,54 +3,56 @@
 namespace App\Providers\Filament;
 
 use App\Facades\Helper;
-use App\Filament\Client\Pages\Tenancy\EditTeamProfile;
-use App\Filament\Client\Pages\Tenancy\RegisterTeam;
-use App\Filament\Client\Pages\Billing;
-use App\Filament\Client\Pages\Dashboard;
-use App\Filament\Client\Pages\Auth\Login;
 use App\Filament\Client\Pages\Auth\EmailVerificationPrompt;
 use App\Filament\Client\Pages\Auth\Invitation;
-use App\Http\Middleware\DefaultTeamVerify;
-use App\Http\Middleware\ExtendedAuthenticate;
-use App\Http\Middleware\VerifyBillableIsSubscribed;
-use App\Models\Team;
-use Filament\Http\Middleware\AuthenticateSession;
-use Filament\Http\Middleware\DisableBladeIconComponents;
-use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Navigation\MenuItem;
-use Filament\Panel;
-use Filament\PanelProvider;
-use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
-use Illuminate\Cookie\Middleware\EncryptCookies;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
-use Illuminate\Routing\Middleware\SubstituteBindings;
-use Illuminate\Session\Middleware\StartSession;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\View\Middleware\ShareErrorsFromSession;
+use App\Filament\Client\Pages\Auth\Login;
+use App\Filament\Client\Pages\Auth\Profile;
+use App\Filament\Client\Pages\Auth\Registration;
+use App\Filament\Client\Pages\Auth\RequestPasswordReset;
+use App\Filament\Client\Pages\Auth\ResetPassword;
+use App\Filament\Client\Pages\Dashboard;
+use App\Filament\Client\Pages\Settings;
+use App\Filament\Client\Pages\Tenancy\EditTeamProfile;
+use App\Filament\Client\Pages\Tenancy\RegisterTeam;
 use App\Filament\Client\Widgets\AttendanceTableWidget;
 use App\Filament\Client\Widgets\DaysWidget;
 use App\Filament\Client\Widgets\LeaveBalanceChart;
 use App\Filament\Client\Widgets\MonthWidget;
 use App\Filament\Client\Widgets\UserEventsList;
 use App\Filament\Client\Widgets\UserMonthlyAttendanceWidget;
+use App\Http\Middleware\DefaultTeamVerify;
+use App\Http\Middleware\ExtendedAuthenticate;
+use App\Http\Middleware\VerifyBillableIsSubscribed;
+use App\Models\Team;
 use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
+use Filament\Facades\Filament;
+use Filament\Http\Middleware\AuthenticateSession;
+use Filament\Http\Middleware\DisableBladeIconComponents;
+use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\MenuItem;
 use Filament\Navigation\NavigationGroup;
+use Filament\Panel;
+use Filament\PanelProvider;
 use Filament\Support\Enums\MaxWidth;
-use Illuminate\Support\Facades\View;
-use App\Filament\Client\Pages\Auth\Profile;
-use App\Filament\Client\Pages\Auth\Registration;
-use App\Filament\Client\Pages\Auth\RequestPasswordReset;
-use App\Filament\Client\Pages\Auth\ResetPassword;
+use Filament\View\PanelsRenderHook;
 use Guava\FilamentKnowledgeBase\KnowledgeBasePlugin;
-use \Filament\View\PanelsRenderHook;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
-use App\Filament\Client\Pages\Settings;
+use Illuminate\Support\Facades\View;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class ClientPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
         $settings = Helper::getGenralSettings();
+
         return $panel
             ->default()
             ->id('client')
@@ -90,7 +92,6 @@ class ClientPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Client/Pages'), for: 'App\\Filament\\Client\\Pages')
             ->pages([
                 Dashboard::class,
-                Billing::class,
             ])
             ->plugins([
                 AuthUIEnhancerPlugin::make()
@@ -104,6 +105,7 @@ class ClientPanelProvider extends PanelProvider
                     $plugin->disableKnowledgeBasePanelButton();
                     $plugin->modalPreviews();
                     $plugin->helpMenuRenderHook(PanelsRenderHook::TOPBAR_END);
+
                     return $plugin;
                 })(),
             ])
@@ -132,6 +134,9 @@ class ClientPanelProvider extends PanelProvider
                     ->label('Payroll Management')
                     ->icon('heroicon-o-banknotes'),
                 NavigationGroup::make()
+                    ->label('Subscription')
+                    ->icon('heroicon-o-credit-card'),
+                NavigationGroup::make()
                     ->label('Settings')
                     ->icon('heroicon-o-cog-6-tooth'),
             ])
@@ -150,8 +155,8 @@ class ClientPanelProvider extends PanelProvider
                 ExtendedAuthenticate::class,
             ])
             ->tenantMiddleware([
-                VerifyBillableIsSubscribed::class,
                 DefaultTeamVerify::class,
+                VerifyBillableIsSubscribed::class,
             ], isPersistent: true)
             ->databaseNotificationsPolling('5s')
             ->routes(function () {
@@ -162,32 +167,39 @@ class ClientPanelProvider extends PanelProvider
             ->tenant(Team::class, ownershipRelationship: 'team', slugAttribute: 'slug')
             ->tenantRegistration(RegisterTeam::class)
             ->maxContentWidth(MaxWidth::Full)
-            ->tenantProfile(EditTeamProfile::class, function () {
-                return Auth::user() && Auth::user()->hasRole('Admin');
-            })
+            ->tenantProfile(EditTeamProfile::class)
+            ->tenantMenuItems([
+                'profile' => MenuItem::make()->label('Edit team profile'),
+                'register' => MenuItem::make()->label('Register New Company')->visible(false),
+            ])
             ->renderHook('panels::footer', fn() => view('filament.components.footer'))
-            ->renderHook('panels::topbar.before', function () {
-                return View::make('filament.client.pages.notices')->render();
+            // ->renderHook('panels::topbar.before', function () {
+            //     return View::make('filament.client.pages.notices')->render();
+            // })
+            ->renderHook('panels::topbar.start', fn() => view('filament.client.pages.notices'))
+            ->renderHook('panels::footer.before', function () {
+                return View::make('filament.client.components.stripe')->render();
+            })
+            ->renderHook('panels::global-search.before', function () {
+                $team = Filament::getTenant();
+                $subscription = $team->activePlanSubscriptions()->first();
+                if ($subscription) {
+                    $plan = $subscription->plan;
+                    $endingSoon = $subscription->ends_at && $subscription->ends_at->isBetween(now(), now()->addDays(7));
+                    $trialEndingSoon = $subscription->trial_ends_at && $subscription->trial_ends_at->isBetween(now(), now()->addDays(7));
+                    if ($endingSoon || $plan->isFree() || $trialEndingSoon) {
+                        return Blade::render('@livewire(\'subscription-card\')');
+                    }
+                }
+
+                return '';
             })
             ->renderHook('panels::global-search.before', function () {
                 $user = Auth::user();
                 $role = $user?->getRoleNames()->first() ?? 'User';
-
-                $subscriptionData = app('helper')->getActiveSubscriptionDetails();
-
-                $endsAt = $subscriptionData->endsAt;
-                $daysLeft = $endsAt ? ceil(now()->diffInSeconds($endsAt, false) / 86400) : null;
-
-                $subscriptionEndView = View::make('filament.components.subscription-end', [
-                    'role' => $role,
-                    'isEndingSoon' => $subscriptionData->isEndingSoon,
-                    'endsAt' => $endsAt,
-                    'daysLeft' => $daysLeft,
-                ])->render();
-
                 $roleBadgeView = View::make('filament.components.role-badge', compact('role'))->render();
 
-                return $subscriptionEndView . $roleBadgeView;
+                return $roleBadgeView;
             });
     }
 }

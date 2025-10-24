@@ -2,8 +2,10 @@
 
 namespace App\Filament\Client\Resources;
 
+use App\Facades\Helper;
 use App\Models\User;
 use App\Filament\Client\Resources\EmployeeResource\Pages;
+use Filament\Forms\Components\DatePicker;
 use Filament\Resources\Resource;
 use Filament\Forms\Form;
 use Filament\Tables;
@@ -88,13 +90,13 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('Gender')
                                                 ->required()
                                                 ->options([
-                                                    'male'   => 'Male',
+                                                    'male' => 'Male',
                                                     'female' => 'Female',
                                                 ]),
-                                            Forms\Components\DatePicker::make('date_of_birth')
+                                            DatePicker::make('date_of_birth')
                                                 ->label('Date Of Birth')
                                                 ->native(false)
-                                                ->prefixIcon('heroicon-m-calendar')
+                                                ->closeOnDateSelection()
                                                 ->required(),
                                             Forms\Components\TextInput::make('blood_group')
                                                 ->label('Blood Group'),
@@ -102,6 +104,17 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('NIC Number'),
                                             Forms\Components\TextInput::make('phone_number')
                                                 ->label('Phone Number'),
+                                            DatePicker::make('joining_date')
+                                                ->label('Joining Date')
+                                                ->native(false)
+                                                ->closeOnDateSelection()
+                                                ->required(),
+                                            DatePicker::make('probation')
+                                                ->label('Probation End Date')
+                                                ->native(false)
+                                                ->closeOnDateSelection()
+                                                ->hint('Leave blank if not applicable')
+                                                ->reactive(),
                                             Forms\Components\TextInput::make('emergency_person')
                                                 ->label('Emergency Contact Name'),
                                             Forms\Components\TextInput::make('emergency_contact')
@@ -110,20 +123,10 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('Marital Status')
                                                 ->required()
                                                 ->options([
-                                                    'single'   => 'Single',
-                                                    'married'  => 'Married',
+                                                    'single' => 'Single',
+                                                    'married' => 'Married',
                                                 ]),
-                                            Forms\Components\DatePicker::make('joining_date')
-                                                ->label('Joining Date')
-                                                ->native(false)
-                                                ->prefixIcon('heroicon-m-calendar')
-                                                ->required(),
-                                            Forms\Components\DatePicker::make('probation')
-                                                ->label('Probation End Date')
-                                                ->native(false)
-                                                ->prefixIcon('heroicon-m-calendar')
-                                                ->hint('Leave blank if not applicable')
-                                                ->reactive(),
+
                                             Forms\Components\TextInput::make('designation')
                                                 ->label('Designation')
                                                 ->required(),
@@ -160,7 +163,13 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                         ])
                                         ->columnSpanFull()
                                         ->visible(fn(callable $get) => $get('attendance_config'))
-                                        ->reactive(),
+                                        ->reactive()
+                                        ->afterStateUpdated(function (callable $set, $state) {
+                                            if ($state === 'offsite') {
+                                                $set('shift_id', null);
+                                                $set('devices', null);
+                                            }
+                                        }),
 
                                     Forms\Components\Grid::make(2)
                                         ->schema([
@@ -169,8 +178,9 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->options(fn() => Filament::getTenant()->shifts()->pluck('name', 'id'))
                                                 ->searchable()
                                                 ->preload()
-                                                ->required(fn(callable $get) => $get('attendance_config') && $get('attendance_type') === 'onsite')
-                                                ->visible(fn(callable $get) => $get('attendance_config') && $get('attendance_type') === 'onsite'),
+                                                ->required(fn(callable $get) => $get('attendance_config') && in_array($get('attendance_type'), ['onsite', 'hybrid']))
+                                                ->visible(fn(callable $get) => $get('attendance_config') && in_array($get('attendance_type'), ['onsite', 'hybrid']))
+                                                ->dehydrated(),
 
                                             // Device Selection - visible for Onsite
                                             Forms\Components\Select::make('devices')
@@ -179,7 +189,8 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->options(fn() => Filament::getTenant()->devices()->pluck('device_name', 'id'))
                                                 ->searchable()
                                                 ->preload()
-                                                ->visible(fn(callable $get) => $get('attendance_config') && $get('attendance_type') === 'onsite'),
+                                                ->visible(fn(callable $get) => $get('attendance_config') && $get('attendance_type') === 'onsite')
+                                                ->dehydrated(),
 
                                             // Hours Input - visible for Offsite and Hybrid
                                             Forms\Components\TextInput::make('hours_required')
@@ -212,7 +223,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                             // Tab 3: Leave Approval Hierarchy
                             Forms\Components\Tabs\Tab::make('Leave Approval Hierarchy')
                                 ->icon('heroicon-m-check-circle')
-                                ->visible(fn(callable $get) => $get('attendance_config'))
+                                ->visible(fn(callable $get) => $get('attendance_config') && !Auth::user()->hasRole('Payroll Manager'))
                                 ->schema([
                                     Forms\Components\Repeater::make('approval_steps')
                                         ->label('Hierarchy')
@@ -232,7 +243,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('Permission')
                                                 ->options([
                                                     'recommend' => 'Recommender',
-                                                    'approve'   => 'Approver',
+                                                    'approve' => 'Approver',
                                                 ])
                                                 ->required(),
 
@@ -269,11 +280,13 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
 
                             Forms\Components\Tabs\Tab::make('Salary Information')
                                 ->icon('heroicon-m-currency-dollar')
+                                ->visible(fn() => Auth::user()->hasRole(['Admin', 'Payroll Manager']) || Auth::user()->can('payroll.manage'))
                                 ->schema([
                                     Forms\Components\Grid::make(2)->schema([
                                         Forms\Components\TextInput::make('bank_details.salary_currency')
                                             ->afterStateHydrated(function (Forms\Components\TextInput $component, $state) {
-                                                if (filled($state)) return;
+                                                if (filled($state))
+                                                    return;
 
                                                 $currency = null;
                                                 $companyDetail = Filament::getTenant();
@@ -299,19 +312,81 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 return $currency;
                                             }),
 
-                                        Forms\Components\TextInput::make('bank_details.probation_salary')
-                                            ->label('Probation Salary')
-                                            ->numeric()
-                                            ->minValue(0)
-                                            ->prefix(fn(callable $get) => $get('bank_details.salary_currency'))
-                                            ->visible(fn($get) => filled($get('probation'))),
-
                                         Forms\Components\TextInput::make('bank_details.base_salary')
-                                            ->label('Base Salary')
+                                            ->label('Gross Salary')
                                             ->numeric()
                                             ->prefix(fn(callable $get) => $get('bank_details.salary_currency'))
-                                            ->minValue(0),
+                                            ->minValue(0)
+                                            ->reactive()
+                                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                                $percentage = $get('bank_details.statutory_component_percentage');
+                                                if (is_numeric($state) && is_numeric($percentage)) {
+                                                    $divisor = ($percentage + 100) / 100;
+                                                    if ($divisor != 0) {
+                                                        $adjusted_gross = $state / $divisor;
+                                                        $set('bank_details.statutory_component_amount', round($state - $adjusted_gross));
+                                                    }
+                                                }
+                                            }),
                                     ]),
+
+                                    Forms\Components\Fieldset::make('Statutory Component')
+                                        ->schema([
+                                            Forms\Components\Select::make('bank_details.statutory_component_category_id')
+                                                ->label('Component Name')
+                                                ->options(\App\Models\SalaryComponentCategory::pluck('name', 'id'))
+                                                ->createOptionForm([
+                                                    Forms\Components\TextInput::make('name')
+                                                        ->label('Category Name')
+                                                        ->required()
+                                                        ->unique(table: 'salary_component_categories', column: 'name'),
+                                                    Forms\Components\Hidden::make('team_id')->default(fn() => Filament::getTenant()->id),
+                                                    Forms\Components\Hidden::make('is_default')->default(false),
+                                                ])
+                                                ->createOptionUsing(function (array $data): int {
+                                                    $category = \App\Models\SalaryComponentCategory::create($data);
+                                                    return $category->id;
+                                                })
+                                                ->preload(),
+
+                                            Forms\Components\TextInput::make('bank_details.statutory_component_percentage')
+                                                ->label('Percentage')
+                                                ->numeric()
+                                                ->suffix('% of gross salary')
+                                                ->reactive()
+                                                ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                                    $grossSalary = $get('bank_details.base_salary');
+                                                    if (is_numeric($grossSalary) && is_numeric($state) && $state > 0) {
+                                                        $divisor = ($state + 100) / 100;
+                                                        if ($divisor != 0) {
+                                                            $adjusted_gross = $grossSalary / $divisor;
+                                                            $set('bank_details.statutory_component_amount', round($grossSalary - $adjusted_gross));
+                                                        }
+                                                    }
+                                                }),
+
+                                            Forms\Components\TextInput::make('bank_details.statutory_component_amount')
+                                                ->label('Amount')
+                                                ->prefix(fn(callable $get) => $get('bank_details.salary_currency'))
+                                                ->numeric()
+                                                ->readOnly()
+                                                ->dehydrated(true)
+                                                ->formatStateUsing(fn($state) => $state !== null ? round($state) : null)
+                                        ])
+                                        ->columns(3)
+                                        ->afterStateHydrated(function (callable $set, callable $get) {
+                                            // Calculate amount when fieldset is hydrated
+                                            $grossSalary = $get('bank_details.base_salary');
+                                            $percentage = $get('bank_details.statutory_component_percentage');
+
+                                            if (is_numeric($grossSalary) && is_numeric($percentage) && $percentage > 0) {
+                                                $divisor = ($percentage + 100) / 100;
+                                                if ($divisor != 0) {
+                                                    $adjusted_gross = $grossSalary / $divisor;
+                                                    $set('bank_details.statutory_component_amount', round($grossSalary - $adjusted_gross));
+                                                }
+                                            }
+                                        }),
 
                                     RadioDeck::make('bank_details.payment_method')
                                         ->label('Payment Method')
@@ -351,7 +426,8 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('')
                                                 ->options(function () {
                                                     $team = Filament::getTenant();
-                                                    if (!$team) return [];
+                                                    if (!$team)
+                                                        return [];
 
                                                     return \App\Models\Fund::where('team_id', $team->id)
                                                         ->where('is_active', true)
@@ -365,6 +441,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                             // Tab 6: Account Setting
                             Forms\Components\Tabs\Tab::make('Account Setting')
                                 ->icon('heroicon-m-home')
+                                ->visible(fn() => !Auth::user()->hasRole('Payroll Manager'))
                                 ->schema([
                                     Forms\Components\Grid::make(2)
                                         ->schema([
@@ -399,6 +476,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                             // Tab 7: Resignation / Termination
                             Forms\Components\Tabs\Tab::make('Resignation / Termination')
                                 ->icon('heroicon-m-exclamation-triangle')
+                                ->visible(fn() => !Auth::user()->hasRole('Payroll Manager') && request()->routeIs('filament.client.resources.employees.edit'))
                                 ->schema([
                                     Forms\Components\Grid::make(2)
                                         ->schema([
@@ -408,17 +486,18 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                                                 ->label('Resign / Terminate')
                                                 ->helperText('Mark this if the employee has resigned or been terminated')
                                                 ->reactive(),
-                                            Forms\Components\DatePicker::make('resign_date')
+                                            DatePicker::make('resign_date')
                                                 ->label('Resignation / Termination Date')
                                                 ->required()
-                                                ->hidden(fn(callable $get) => ! $get('resigned')),
+                                                ->native(false)->closeOnDateSelection()
+                                                ->hidden(fn(callable $get) => !$get('resigned')),
                                         ]),
                                     Forms\Components\Grid::make(1)
                                         ->schema([
                                             Forms\Components\Textarea::make('remarks')
                                                 ->label('Remarks')
                                                 ->required()
-                                                ->hidden(fn(callable $get) => ! $get('resigned')),
+                                                ->hidden(fn(callable $get) => !$get('resigned')),
                                         ]),
                                 ]),
                         ])
@@ -495,7 +574,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                         1 => 'Active',
                         0 => 'Inactive',
                     ])
-                    ->default(1),
+                    ->default(1)->indicateUsing(fn() => null),
 
                 SelectFilter::make('attendance_type')
                     ->label('Attendance Type')
@@ -503,7 +582,7 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                         'onsite' => 'On Site',
                         'offsite' => 'Remote',
                         'hybrid' => 'Hybrid',
-                    ]),
+                    ])->indicateUsing(fn() => null),
 
                 SelectFilter::make('department_id')
                     ->label('Department')
@@ -515,18 +594,19 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
                         }
 
                         return $query->whereHas('assignedDepartment', fn(Builder $q) => $q->where('department_id', $data['value']));
-                    }),
+                    })->indicateUsing(fn() => null),
 
                 SelectFilter::make('role')
                     ->label('Role')
                     ->placeholder('All Roles')
-                    ->options(fn() => Filament::getTenant()->roles()->pluck('name', 'id')->toArray()),
+                    ->options(fn() => Filament::getTenant()->roles()->pluck('name', 'id')->toArray())->indicateUsing(fn() => null),
             ])
-            ->defaultSort('created_at', 'desc')
+            ->defaultSort('id', 'asc')
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])
+            ->actionsColumnLabel('Actions')
             ->bulkActions([
                 Tables\Actions\DeleteBulkAction::make()
                     ->visible(fn() => Auth::user()->can('employees.manage') || Auth::user()->hasRole('Admin')),
@@ -546,21 +626,33 @@ class EmployeeResource extends Resource implements HasKnowledgeBase
     // Authorization Methods
     public static function canViewAny(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin', 'web') || Auth::user()->can('employees.view')  || Auth::user()->can('employees.manage') || Auth::user()->hasRole('CEO') || Auth::user()->hasRole('Payroll Manager') || Auth::user()->hasRole('AMS Manager'));
+        return Auth::check() &&
+            (
+                Auth::user()->hasRole('Admin', 'web')
+                || Auth::user()->can('employees.view')
+                || Auth::user()->can('employees.manage')
+                || Auth::user()->hasRole('CEO')
+                || Auth::user()->hasRole('AMS Manager')
+            ) && Helper::has_feature('employees');
     }
 
     public static function canCreate(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin', 'web') || Auth::user()->can('employees.manage') || Auth::user()->hasRole('CEO') || Auth::user()->hasRole('Payroll Manager') || Auth::user()->hasRole('AMS Manager'));
+        return Auth::check() && (
+            Auth::user()->hasRole('Admin', 'web') ||
+            Auth::user()->can('employees.manage') ||
+            Auth::user()->hasRole('CEO') ||
+            Auth::user()->hasRole('AMS Manager')
+        );
     }
 
     public static function canEdit($record): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin', 'web') || Auth::user()->can('employees.manage') || Auth::user()->hasRole('CEO') || Auth::user()->hasRole('Payroll Manager') || Auth::user()->hasRole('AMS Manager'));
+        return Auth::check() && (Auth::user()->hasRole('Admin', 'web') || Auth::user()->can('employees.manage') || Auth::user()->hasRole('CEO') || Auth::user()->hasRole('AMS Manager'));
     }
 
     public static function canDelete($record): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin', 'web') || Auth::user()->can('employees.manage') || Auth::user()->hasRole('CEO') || Auth::user()->hasRole('Payroll Manager') || Auth::user()->hasRole('AMS Manager'));
+        return Auth::check() && (Auth::user()->hasRole('Admin', 'web') || Auth::user()->can('employees.manage') || Auth::user()->hasRole('CEO') || Auth::user()->hasRole('AMS Manager'));
     }
 }

@@ -33,34 +33,52 @@ class FeatureManager extends RelationManager
 
     public function form(Form $form): Form
     {
+        $options = [
+            'Attendance' => 'Attendance',
+            'PayRoll' => 'PayRoll',
+            'Funds' => 'Funds',
+            'Employees' => 'Employees',
+            'Shifts' => 'Shifts',
+            'Departments' => 'Departments',
+            'Roles' => 'Roles',
+            'Biometric Devices' => 'Biometric Devices',
+            'Attendance Policies' => 'Attendance Policies',
+        ];
+
         return $form
             ->schema([
-                TextInput::make('name')
+                Forms\Components\Select::make('name')
                     ->label('Name')
-                    ->columnSpanFull()
-                    ->required(),
-                TextInput::make('description')
+                    ->options($options)
+                    ->required()
+                    ->columnSpanFull(),
+
+                Forms\Components\TextInput::make('description')
                     ->label('Description')
                     ->columnSpanFull(),
-                TextInput::make('value')
+
+                Forms\Components\TextInput::make('value')
                     ->label('Value')
-                    ->columnSpanFull()
-                    ->default(0)
-                    ->required(),
-                Forms\Components\Select::make('resettable_interval')
-                    ->label('Resettable Interval')
-                    ->default(Interval::DAY->value)
-                    ->options([
-                        Interval::DAY->value => 'Day',
-                        Interval::MONTH->value => 'Month',
-                        Interval::YEAR->value => 'Year',
-                    ])
-                    ->required(),
-                Forms\Components\TextInput::make('resettable_period')
-                    ->label('Resettable Period')
                     ->required()
                     ->default(0)
-                    ->numeric(),
+                    ->helperText('Enter -1 for unlimited, 0 for not available, or a specific count.')
+                    ->dehydrateStateUsing(function ($state) {
+                        if ($state == 0) {
+                            return 'false';
+                        } elseif ($state == -1) {
+                            return 'true';
+                        }
+                        return (int) $state;
+                    })
+                    ->formatStateUsing(function ($state) {
+                        if ($state === 'false') {
+                            return 0;
+                        } elseif ($state === 'true') {
+                            return -1;
+                        }
+                        return $state;
+                    })
+                    ->columnSpanFull(),
             ]);
     }
 
@@ -74,15 +92,16 @@ class FeatureManager extends RelationManager
                     ->searchable(),
                 Tables\Columns\TextColumn::make('value')
                     ->label('Value')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('resettable_interval')
-                    ->label('Resettable Interval')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('resettable_period')
-                    ->label('Resettable Period')
+                    ->formatStateUsing(function ($state) {
+                        if ($state == 'true') {
+                            return '✅';
+                        } elseif ($state == 'false') {
+                            return '❌';
+                        }
+                        return $state; // keep number as it is
+                    })
                     ->searchable(),
             ])
-            ->filters([])
             ->headerActions([
                 Tables\Actions\CreateAction::make(),
             ])
@@ -96,4 +115,5 @@ class FeatureManager extends RelationManager
                 ]),
             ]);
     }
+
 }

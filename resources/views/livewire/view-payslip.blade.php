@@ -8,7 +8,8 @@
         }
 
         .payslip-container {
-            width: 100%;
+            font-family: Poppins, sans-serif;
+            /* width: 100%; */
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
@@ -34,7 +35,7 @@
         }
 
         .section-title {
-            font-size: 20px;
+            font-size: 16px;
             margin-bottom: 15px;
             border-bottom: 2px solid #eee;
             padding-bottom: 8px;
@@ -147,18 +148,63 @@
         }
 
         $baseSalary = $payroll->base_salary;
-        $totalEarnings = $baseSalary;
+        $taxableEarnings = [];
+        $nonTaxableEarnings = [];
 
-        foreach ($earningsData['custom_earnings_applied'] ?? [] as $earning) {
-            $totalEarnings += $earning['calculated_amount'];
+        // Collect all earnings from custom_earnings_applied and ad_hoc_earnings
+        $allEarnings = array_merge(
+            $earningsData['custom_earnings_applied'] ?? [],
+            $earningsData['ad_hoc_earnings'] ?? [],
+        );
+
+        foreach ($allEarnings as $earning) {
+            if (isset($earning['tax_status']) && $earning['tax_status'] === 'taxable') {
+                $taxableEarnings[] = $earning;
+            } else {
+                // Default to non-taxable if status is missing or not taxable
+                $nonTaxableEarnings[] = $earning;
+            }
         }
 
-        foreach ($earningsData['ad_hoc_earnings'] ?? [] as $earning) {
-            $totalEarnings += $earning['calculated_amount'];
-        }
+        // Add overtime earnings if applicable
         if ($showOvertime && !empty($attendance['overtime_earning_amount'])) {
-            $totalEarnings += $attendance['overtime_earning_amount'];
+            // Assuming overtime is non-taxable for display purposes here,
+            // as its actual tax status is handled in PayrollCalculationService
+            $nonTaxableEarnings[] = [
+                'title' => 'Overtime Earnings',
+                'calculated_amount' => $attendance['overtime_earning_amount'],
+            ];
         }
+
+        // Calculate total earnings for display
+        $totalEarnings = $baseSalary;
+        foreach ($taxableEarnings as $earning) {
+            $totalEarnings += $earning['calculated_amount'];
+        }
+        foreach ($nonTaxableEarnings as $earning) {
+            $totalEarnings += $earning['calculated_amount'];
+        }
+
+        $totalDeductions = 0;
+        foreach ($deductionsData['custom_deductions_applied'] ?? [] as $deduction) {
+            $totalDeductions += $deduction['calculated_amount'];
+        }
+        foreach ($deductionsData['ad_hoc_deductions'] ?? [] as $deduction) {
+            $totalDeductions += $deduction['calculated_amount'];
+        }
+        foreach ($payroll->fund_data ?? [] as $fund_data) {
+            $totalDeductions += $fund_data['calculated_amount'];
+        }
+        foreach ($payroll->loan_data ?? [] as $loan_data) {
+            $totalDeductions += $loan_data['deducted_amount'];
+        }
+        if ($showLate && !empty($attendance['late_minutes_deduction_amount'])) {
+            $totalDeductions += $attendance['late_minutes_deduction_amount'];
+        }
+        if ($showAbsent && !empty($attendance['absent_deduction_amount'])) {
+            $totalDeductions += $attendance['absent_deduction_amount'];
+        }
+        $totalDeductions += $taxData['monthly_tax_calculated'] ?? 0;
     @endphp
 
     <div class="payslip-container">
@@ -188,26 +234,28 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td>Base Salary</td>
+                        <td>Gross Salary</td>
                         <td>{{ $symbol }}{{ number_format($baseSalary) }}</td>
                     </tr>
-                    @foreach ($earningsData['custom_earnings_applied'] ?? [] as $earning)
-                        <tr>
-                            <td>{{ $earning['title'] }}</td>
-                            <td>{{ $symbol }}{{ number_format($earning['calculated_amount']) }}</td>
-                        </tr>
-                    @endforeach
-                    @foreach ($earningsData['ad_hoc_earnings'] ?? [] as $earning)
-                        <tr>
-                            <td>{{ $earning['title'] }}</td>
-                            <td>{{ $symbol }}{{ number_format($earning['calculated_amount']) }}</td>
-                        </tr>
-                    @endforeach
-                    @if ($showOvertime && !empty($attendance['overtime_earning_amount']))
-                        <tr>
-                            <td>Overtime Earnings</td>
-                            <td>{{ $symbol }}{{ number_format($attendance['overtime_earning_amount'], 2) }}</td>
-                        </tr>
+                    @if (!empty($taxableEarnings))
+                        @foreach ($taxableEarnings as $earning)
+                            @if (($earning['calculated_amount'] ?? 0) > 0)
+                                <tr>
+                                    <td>{{ $earning['title'] }}</td>
+                                    <td>{{ $symbol }}{{ number_format($earning['calculated_amount']) }}</td>
+                                </tr>
+                            @endif
+                        @endforeach
+                    @endif
+                    @if (!empty($nonTaxableEarnings))
+                        @foreach ($nonTaxableEarnings as $earning)
+                            @if (($earning['calculated_amount'] ?? 0) > 0)
+                                <tr>
+                                    <td>{{ $earning['title'] }}</td>
+                                    <td>{{ $symbol }}{{ number_format($earning['calculated_amount']) }}</td>
+                                </tr>
+                            @endif
+                        @endforeach
                     @endif
                     <tr>
                         <td><strong>Total Earnings</strong></td>
@@ -235,40 +283,48 @@
                 </thead>
                 <tbody>
                     @foreach ($deductionsData['custom_deductions_applied'] ?? [] as $deduction)
-                        <tr>
-                            <td>{{ $deduction['title'] }}</td>
-                            <td>{{ $symbol }}{{ number_format($deduction['calculated_amount']) }}</td>
-                        </tr>
+                        @if (($deduction['calculated_amount'] ?? 0) > 0)
+                            <tr>
+                                <td>{{ $deduction['title'] }}</td>
+                                <td>{{ $symbol }}{{ number_format($deduction['calculated_amount']) }}</td>
+                            </tr>
+                        @endif
                     @endforeach
                     @foreach ($deductionsData['ad_hoc_deductions'] ?? [] as $deduction)
-                        <tr>
-                            <td>{{ $deduction['title'] }}</td>
-                            <td>{{ $symbol }}{{ number_format($deduction['calculated_amount']) }}</td>
-                        </tr>
+                        @if (($deduction['calculated_amount'] ?? 0) > 0)
+                            <tr>
+                                <td>{{ $deduction['title'] }}</td>
+                                <td>{{ $symbol }}{{ number_format($deduction['calculated_amount']) }}</td>
+                            </tr>
+                        @endif
                     @endforeach
                     @foreach ($payroll->fund_data ?? [] as $fund_data)
-                        <tr>
-                            <td>{{ $fund_data['title'] }}</td>
-                            <td>{{ $symbol }}{{ number_format($fund_data['calculated_amount']) }}</td>
-                        </tr>
+                        @if (($fund_data['calculated_amount'] ?? 0) > 0)
+                            <tr>
+                                <td>{{ $fund_data['title'] }}</td>
+                                <td>{{ $symbol }}{{ number_format($fund_data['calculated_amount']) }}</td>
+                            </tr>
+                        @endif
                     @endforeach
                     @foreach ($payroll->loan_data ?? [] as $loan_data)
-                        <tr>
-                            <td>{{ $loan_data['loan_name'] }}</td>
-                            <td>{{ $symbol }}{{ number_format($loan_data['deducted_amount']) }}</td>
-                        </tr>
+                        @if (($loan_data['deducted_amount'] ?? 0) > 0)
+                            <tr>
+                                <td>{{ $loan_data['loan_name'] }}</td>
+                                <td>{{ $symbol }}{{ number_format($loan_data['deducted_amount']) }}</td>
+                            </tr>
+                        @endif
                     @endforeach
                     @if ($showLate && !empty($attendance['late_minutes_deduction_amount']))
                         <tr>
                             <td>Late Penalties</td>
-                            <td>{{ $symbol }}{{ number_format($attendance['late_minutes_deduction_amount'], 2) }}
+                            <td>{{ $symbol }}{{ number_format($attendance['late_minutes_deduction_amount']) }}
                             </td>
                         </tr>
                     @endif
                     @if ($showAbsent && !empty($attendance['absent_deduction_amount']))
                         <tr>
                             <td>Absent Penalties</td>
-                            <td>{{ $symbol }}{{ number_format($attendance['absent_deduction_amount'], 2) }}</td>
+                            <td>{{ $symbol }}{{ number_format($attendance['absent_deduction_amount']) }}</td>
                         </tr>
                     @endif
                     <tr>
@@ -277,22 +333,18 @@
                     </tr>
                     <tr>
                         <td><strong>Total Deductions</strong></td>
-                        <td><strong>{{ $symbol }}{{ number_format($payroll->total_deductions) }}</strong></td>
+                        <td><strong>{{ $symbol }}{{ number_format($totalDeductions) }}</strong></td>
                     </tr>
                 </tbody>
             </table>
             <table class="totals-table">
-                <thead>
-                    <tr>
-                        <th>Net Pay</th>
-                    </tr>
-                </thead>
                 <tbody>
                     <tr>
+                        <td>Net Pay</td>
                         <td>{{ $symbol }}{{ number_format($payroll->net_payable_salary) }}</td>
                     </tr>
                     <tr>
-                        <td>{{ numberToWords($payroll->net_payable_salary, $symbol) }}</td>
+                        <td colspan="2">{{ numberToWords($payroll->net_payable_salary, $symbol) }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -314,8 +366,8 @@
                             @if ($showOvertime)
                                 <th>Overtime Minutes</th>
                             @endif
-                            <th>Per Day Rate</th>
-                            <th>Per Minute Rate</th>
+                            <th>Per Day Rate ({{ $symbol }})</th>
+                            <th>Per Minute Rate ({{ $symbol }})</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -332,8 +384,9 @@
                             @if ($showOvertime)
                                 <td>{{ $attendance['total_overtime_minutes'] ?? 0 }}</td>
                             @endif
-                            <td>{{ $symbol }}{{ number_format($attendance['per_day_rate_used'] ?? 0, 2) }}</td>
-                            <td>{{ $symbol }}{{ number_format($attendance['per_minute_rate_used'] ?? 0, 4) }}</td>
+                            <td>{{ number_format($attendance['per_day_rate_used'] ?? 0, 2) }}</td>
+                            <td>{{ number_format($attendance['per_minute_rate_used'] ?? 0, 2) }}
+                            </td>
                         </tr>
                     </tbody>
                 </table>

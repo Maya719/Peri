@@ -82,9 +82,9 @@
     @php
         $attendance = $payroll->attendance_data ?? [];
 
-        $showAbsent = ($attendance['absent_deduction_amount'] ?? 0) > 0;
-        $showLate = ($attendance['late_minutes_deduction_amount'] ?? 0) > 0;
-        $showOvertime = ($attendance['overtime_earning_amount'] ?? 0) > 0;
+        $showAbsent = $payroll->deduct_absent_penalties ?? false;
+        $showLate = $payroll->deduct_late_penalties ?? false;
+        $showOvertime = $payroll->apply_overtime_earnings ?? false;
 
         $shouldShowTable = $showAbsent || $showLate || $showOvertime;
     @endphp
@@ -322,7 +322,7 @@
                 $deductions = collect();
 
                 $earnings->push([
-                    'title' => 'Base Salary',
+                    'title' => 'Gross Salary',
                     'calculated_amount' => $payroll->base_salary,
                 ]);
 
@@ -365,7 +365,11 @@
 
                 $attendance = $payroll->attendance_data ?? [];
 
-                if (!empty($attendance['overtime_earning_amount']) && $attendance['overtime_earning_amount'] > 0) {
+                if (
+                    $showOvertime &&
+                    !empty($attendance['overtime_earning_amount']) &&
+                    $attendance['overtime_earning_amount'] > 0
+                ) {
                     $earnings->push([
                         'title' => 'Overtime Earning',
                         'calculated_amount' => $attendance['overtime_earning_amount'],
@@ -373,6 +377,7 @@
                 }
 
                 if (
+                    $showLate &&
                     !empty($attendance['late_minutes_deduction_amount']) &&
                     $attendance['late_minutes_deduction_amount'] > 0
                 ) {
@@ -382,7 +387,11 @@
                     ]);
                 }
 
-                if (!empty($attendance['absent_deduction_amount']) && $attendance['absent_deduction_amount'] > 0) {
+                if (
+                    $showAbsent &&
+                    !empty($attendance['absent_deduction_amount']) &&
+                    $attendance['absent_deduction_amount'] > 0
+                ) {
                     $deductions->push([
                         'title' => 'Absent Deduction',
                         'calculated_amount' => $attendance['absent_deduction_amount'],
@@ -476,35 +485,42 @@
         </div>
 
         <!-- Payment Information -->
+        @php
+            $bankDetails = $payroll->user->bankDetails()->where('team_id', $company->id)->first();
+        @endphp
         <table class="payment-info" style="width: 100%; table-layout: fixed;">
             <tr>
                 <td class="label" style="width: 25%;">Payment Mode</td>
                 <td style="width: 25%;">
-                    @switch($payroll->user->payment_method)
-                        @case('cheque')
-                            Cheque
-                        @break
+                    @if ($bankDetails)
+                        @switch($bankDetails->payment_method)
+                            @case('cheque')
+                                Cheque
+                            @break
 
-                        @case('cash')
-                            Cash
-                        @break
+                            @case('cash')
+                                Cash
+                            @break
 
-                        @case('bank_transfer')
-                            Bank Transfer
-                        @break
+                            @case('bank_transfer')
+                                Bank Transfer
+                            @break
 
-                        @case('other')
-                            {{ $payroll->user->other_payment_method ?? 'N/A' }}
-                        @break
+                            @case('other')
+                                {{ $bankDetails->other_payment_method ?? 'N/A' }}
+                            @break
 
-                        @default
-                            {{ ucfirst($payroll->user->payment_method ?? 'N/A') }}
-                    @endswitch
+                            @default
+                                {{ ucfirst($bankDetails->payment_method ?? 'N/A') }}
+                        @endswitch
+                    @else
+                        N/A
+                    @endif
                 </td>
-                @if ($payroll->user->payment_method === 'bank_transfer')
+                @if ($bankDetails && $bankDetails->payment_method === 'bank_transfer')
                     <td class="label" style="width: 25%;">A/C Number</td>
                     <td style="width: 25%;">
-                        {{ $payroll->user->account_number ?? 'N/A' }}
+                        {{ $bankDetails->account_number ?? 'N/A' }}
                     </td>
                 @endif
             </tr>

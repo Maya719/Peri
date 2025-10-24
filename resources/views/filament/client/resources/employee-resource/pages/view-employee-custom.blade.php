@@ -146,125 +146,140 @@
 
         <!-- Main Content -->
         <div class="lg:col-span-2 space-y-6">
-            <!-- Basic Information -->
-            <x-filament::section>
-                <x-slot name="heading">
-                    <div>
-                        <span>Basic Information</span>
-                    </div>
-                </x-slot>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
-                                    Employee ID</p>
-                                <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ $record->id }}</p>
-                            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Basic Information -->
+                <x-filament::section>
+                    <x-slot name="heading">
+                        <div>
+                            <span>Basic Information</span>
                         </div>
-                    </div>
-
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
-                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">Gender
-                        </p>
-                        <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ ucfirst($record->gender) }}
-                        </p>
-                    </div>
-
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
-                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">Date of
-                            Birth</p>
-                        <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                            {{ $record->date_of_birth ? \Carbon\Carbon::parse($record->date_of_birth)->format('M d, Y') : 'Not provided' }}
-                        </p>
-                    </div>
-
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
-                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">Blood
-                            Group</p>
-                        <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                            {{ $record->blood_group ?? 'Not provided' }}</p>
-                    </div>
-
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
-                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">NIC
-                            Number</p>
-                        <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                            {{ $record->cnic ?? 'Not provided' }}
-                        </p>
-                    </div>
-
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
-                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">Marital
-                            Status</p>
-                        <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                            {{ ucfirst($record->martial_status) ?? 'Not provided' }}</p>
-                    </div>
-                </div>
-            </x-filament::section>
-
-            <!-- Employment Details -->
-            <x-filament::section>
-                <x-slot name="heading">
-                    <div>
-                        <span>Employment Details</span>
-                    </div>
-                </x-slot>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-4">
+                    </x-slot>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
-                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
-                                Joining Date</p>
-                            <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                                {{ $record->joining_date ? \Carbon\Carbon::parse($record->joining_date)->format('M d, Y') : 'Not provided' }}
-                            </p>
-                        </div>
-
-                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
-                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
-                                Department</p>
-                            <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                                {{ $record->assignedDepartment->department->name ?? 'Not assigned' }}</p>
-                        </div>
-
-                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
-                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
-                                Role</p>
-                            <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                                {{ $record->getRoleNames()->join(', ') ?? 'No role assigned' }}</p>
-                        </div>
-                    </div>
-
-                    <div class="space-y-4">
-                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
-                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
-                                Probation End Date
-                            </p>
-                            <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                                {{ $record->probation ? \Carbon\Carbon::parse($record->probation)->format('M d, Y') : 'N/A' }}
-                            </p>
-                        </div>
-
-                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
-                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
-                                Shift</p>
-                            <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                                {{ $record->assignedShift->shift->name ?? 'Not assigned' }}</p>
-                        </div>
-
-                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
-                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
-                                Employment Status</p>
-                            <div class="flex items-center space-x-2">
-                                <div class="w-3 h-3 bg-{{ $record->active ? 'success' : 'danger' }}-500 rounded-full">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p
+                                        class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
+                                        Employee ID</p>
+                                    <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ $record->id }}
+                                    </p>
                                 </div>
-                                <p class="text-lg ml-1 font-semibold text-gray-900 dark:text-white">
-                                    {{ $record->active ? 'Active' : 'Inactive' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
+                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
+                                Gender
+                            </p>
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                                {{ ucfirst($record->gender) }}
+                            </p>
+                        </div>
+
+                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
+                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">Date
+                                of
+                                Birth</p>
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                                {{ $record->date_of_birth ? \Carbon\Carbon::parse($record->date_of_birth)->format('M d, Y') : 'Not provided' }}
+                            </p>
+                        </div>
+
+                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
+                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
+                                Blood
+                                Group</p>
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                                {{ $record->blood_group ?? 'Not provided' }}</p>
+                        </div>
+
+                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
+                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">NIC
+                                Number</p>
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                                {{ $record->cnic ?? 'Not provided' }}
+                            </p>
+                        </div>
+
+                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
+                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
+                                Marital
+                                Status</p>
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                                {{ ucfirst($record->martial_status) ?? 'Not provided' }}</p>
+                        </div>
+                    </div>
+                </x-filament::section>
+
+                <!-- Employment Details -->
+                <x-filament::section>
+                    <x-slot name="heading">
+                        <div>
+                            <span>Employment Details</span>
+                        </div>
+                    </x-slot>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-4">
+                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
+                                <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
+                                    Joining Date</p>
+                                <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {{ $record->joining_date ? \Carbon\Carbon::parse($record->joining_date)->format('M d, Y') : 'Not provided' }}
+                                </p>
+                            </div>
+
+                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
+                                <p
+                                    class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
+                                    Department</p>
+                                <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {{ $record->assignedDepartment->department->name ?? 'Not assigned' }}</p>
+                            </div>
+
+                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
+                                <p
+                                    class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
+                                    Role</p>
+                                <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {{ $record->getRoleNames()->join(', ') ?? 'No role assigned' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
+                                <p
+                                    class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
+                                    Probation End Date
+                                </p>
+                                <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {{ $record->probation ? \Carbon\Carbon::parse($record->probation)->format('M d, Y') : 'N/A' }}
+                                </p>
+                            </div>
+
+                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
+                                <p
+                                    class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
+                                    Shift</p>
+                                <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {{ $record->assignedShift->shift->name ?? 'Not assigned' }}</p>
+                            </div>
+
+                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
+                                <p
+                                    class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
+                                    Employment Status</p>
+                                <div class="flex items-center space-x-2">
+                                    <div
+                                        class="w-3 h-3 bg-{{ $record->active ? 'success' : 'danger' }}-500 rounded-full">
+                                    </div>
+                                    <p class="text-sm ml-1 font-semibold text-gray-900 dark:text-white">
+                                        {{ $record->active ? 'Active' : 'Inactive' }}</p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </x-filament::section>
+                </x-filament::section>
+            </div>
 
             <!-- Salary Information -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -279,27 +294,17 @@
                             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
                                 Base
                                 Salary</p>
-                            <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">
                                 {{ $record->bankDetails->first()->salary_currency ?? '' }}
                                 {{ number_format($record->bankDetails->first()->base_salary ?? 0, 2) }}
                             </p>
                         </div>
-                        @if ($record->probation)
-                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
-                                <p
-                                    class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
-                                    Probation Salary</p>
-                                <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                                    {{ $record->bankDetails->first()->salary_currency ?? '' }}
-                                    {{ number_format($record->bankDetails->first()->probation_salary ?? 0, 2) }}
-                                </p>
-                            </div>
-                        @endif
+                        
                         <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
                             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
                                 Payment
                                 Method</p>
-                            <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">
                                 {{ ucfirst(str_replace('_', ' ', $record->bankDetails->first()->payment_method ?? 'N/A')) }}
                             </p>
                         </div>
@@ -313,21 +318,21 @@
                                     <p
                                         class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
                                         Account Holder Name</p>
-                                    <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                                    <p class="text-sm font-semibold text-gray-900 dark:text-white">
                                         {{ $record->bankDetails->first()->account_holder_name ?? 'N/A' }}</p>
                                 </div>
                                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
                                     <p
                                         class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
                                         Bank Name</p>
-                                    <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                                    <p class="text-sm font-semibold text-gray-900 dark:text-white">
                                         {{ $record->bankDetails->first()->bank_name ?? 'N/A' }}</p>
                                 </div>
                                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
                                     <p
                                         class="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-200">
                                         Account Number</p>
-                                    <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                                    <p class="text-sm font-semibold text-gray-900 dark:text-white">
                                         {{ $record->bankDetails->first()->account_number ?? 'N/A' }}</p>
                                 </div>
                             </div>
@@ -340,7 +345,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 @foreach ($record->fundsForCurrentTeam as $fund)
                                     <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
-                                        <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                                        <p class="text-sm font-semibold text-gray-900 dark:text-white">
                                             {{ $fund->name }}
                                         </p>
                                     </div>
@@ -363,11 +368,11 @@
                                 <div
                                     class="flex items-center space-x-4 bg-gray-50 rounded-lg p-4 border border-gray-200 dark:bg-gray-800">
                                     <div
-                                        class="h-10 w-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold text-lg shadow-lg">
+                                        class="h-10 w-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-lg">
                                         {{ $step->level }}
                                     </div>
                                     <div class="flex-1">
-                                        <h4 class="text-lg ml-2 font-semibold text-gray-900 dark:text-white">
+                                        <h4 class="text-sm ml-2 font-semibold text-gray-900 dark:text-white">
                                             {{ $step->role->name ?? 'Role not found' }}</h4>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">
                                             <span

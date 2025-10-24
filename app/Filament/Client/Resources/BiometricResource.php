@@ -8,6 +8,9 @@ use App\Filament\Client\Resources\BiometricResource\RelationManagers;
 use App\Models\Biometric;
 use App\Models\User;
 use Carbon\Carbon;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
+use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
@@ -35,7 +38,7 @@ class BiometricResource extends Resource implements HasKnowledgeBase
     public static function shouldRegisterNavigation(): bool
     {
         $user = Auth::user();
-        return $user->hasRole('Admin') || $user->attendance_config == 1 || $user->hasRole('CEO') || $user->hasRole('AMS Manager');
+        return ($user->hasRole('Admin') || $user->attendance_config == 1 || $user->hasRole('CEO') || $user->hasRole('AMS Manager'));
     }
 
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
@@ -81,21 +84,37 @@ class BiometricResource extends Resource implements HasKnowledgeBase
                                     'break_end' => 'Break End',
                                     'evening' => 'Evening',
                                 ])
+                                ->live()
+                                ->afterStateUpdated(function (Get $get, Set $set, ?string $state) {
+                                    if ($state) {
+                                        $date = Carbon::today();
+                                        switch ($state) {
+                                            case 'morning':
+                                                $date->setTime(9, 0);
+                                                break;
+                                            case 'break_start':
+                                                $date->setTime(12, 30);
+                                                break;
+                                            case 'break_end':
+                                                $date->setTime(13, 30);
+                                                break;
+                                            case 'evening':
+                                                $date->setTime(18, 0);
+                                                break;
+                                        }
+                                        $set('timedate', $date->format('Y-m-d H:i:s'));
+                                    }
+                                })
                                 ->columns(1)
                                 ->required()
-                                ->disabled(
-                                    fn($record) => ($record && ($record->status === 'approved' || $record->status === 'rejected'))
-                                ),
+                                ->disabled(fn($record) => ($record && in_array($record->status, ['approved', 'rejected']))),
 
                             DateTimePicker::make('timedate')
                                 ->label('Date & Time')
-                                ->native(false)
-                                ->prefixIcon('heroicon-m-calendar')
-                                ->columns(1)
+                                ->time(true)
+                                ->maxDate(fn() => today())
                                 ->required()
-                                ->disabled(
-                                    fn($record) => ($record && ($record->status === 'approved' || $record->status === 'rejected'))
-                                ),
+                                ->disabled(fn($record) => ($record && in_array($record->status, ['approved', 'rejected']))),
 
                             TextInput::make('reason')
                                 ->required()
@@ -121,8 +140,8 @@ class BiometricResource extends Resource implements HasKnowledgeBase
                                 ->hidden(
                                     fn($record) =>
                                     !$record ||
-                                        ($record->user_id === Auth::id()) ||
-                                        !(Gate::allows('biometric.approve') || Auth::user()->hasRole('Admin'))
+                                    ($record->user_id === Auth::id()) ||
+                                    !(Gate::allows('biometric.approve') || Auth::user()->hasRole('Admin'))
                                 )
                                 ->disabled(
                                     fn($record) => ($record && ($record->status === 'approved' || $record && $record->status === 'rejected'))
@@ -179,7 +198,7 @@ class BiometricResource extends Resource implements HasKnowledgeBase
                     ->visible(fn($record) => (Auth::user()->hasPermissionTo('biometric.createRequest') || Auth::user()->hasRole('Admin')) && $record->user_id === Auth::id())
                     ->disabled(fn($record) => $record && $record->status === 'approved'),
             ])
-
+            ->actionsColumnLabel('Actions')
             ->filters([]);
     }
 
@@ -195,7 +214,7 @@ class BiometricResource extends Resource implements HasKnowledgeBase
 
     public static function canViewAny(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin') || Auth::user()->can('biometric.view') || Auth::user()->can('biometric.createRequest'));
+        return Auth::check() && (Auth::user()->hasRole('Admin') || Auth::user()->can('biometric.view') || Auth::user()->can('biometric.createRequest')) && Helper::has_feature('attendance');
     }
 
     public static function canCreate(): bool

@@ -20,7 +20,7 @@ class Attendance extends Page implements HasKnowledgeBase
     public static function shouldRegisterNavigation(): bool
     {
         $user = Auth::user();
-        return $user->hasRole('Admin') || $user->attendance_config == 1 || $user->hasRole('CEO') || $user->hasRole('AMS Manager');
+        return ($user->hasRole('Admin') || $user->attendance_config == 1 || $user->hasRole('CEO') || $user->hasRole('AMS Manager'))  && Helper::has_feature('attendance');
     }
 
     public int | string $perPage = 10;
@@ -72,7 +72,11 @@ class Attendance extends Page implements HasKnowledgeBase
 
         return Excel::download(new AttendanceTableExport($userAttendanceData, $users), 'attendance_table.xlsx');
     }
-
+    public static function canAccess(): bool
+    {
+        $user = Auth::user();
+        return Auth::check() && (Auth::user()->hasRole('Admin') || $user->attendance_config == 1 || $user->hasRole('CEO') || $user->hasRole('AMS Manager')) && Helper::has_feature('attendance');
+    }
     public function buildAttendanceData($users, $attendances, $from, $to, $policy)
     {
         return Helper::buildAttendanceData($users, $attendances, $from, $to, $policy);

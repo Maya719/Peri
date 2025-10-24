@@ -50,7 +50,7 @@ class OffCyclePayrollRecordResource extends Resource
             return $query->whereHas('user', fn($q) => $q->where('team_id', Filament::getTenant()->id));
         }
 
-        if ($user->can('payroll.approve') || $user->can('payroll.manageRecords')) {
+        if ($user->can('payroll.approve') || $user->can('payroll.manage')) {
             return $query->whereHas('user', fn($q) => $q->where('team_id', Filament::getTenant()->id));
         }
 
@@ -107,14 +107,14 @@ class OffCyclePayrollRecordResource extends Resource
 
                         if (in_array($record->status, ['pending_approval', 'rejected'])) {
                             return $user->hasRole('Admin') ||
-                                $user->can('payroll.create') ||
+                                $user->can('payroll.manage') ||
                                 $user->can('payroll.approve');
                         }
 
                         if ($record->status === 'approved') {
                             return $user->can('payroll.viewRecords') ||
                                 $user->hasRole('Admin') ||
-                                $user->can('payroll.manageRecords');
+                                $user->can('payroll.manage');
                         }
 
                         return false;
@@ -167,7 +167,7 @@ class OffCyclePayrollRecordResource extends Resource
                     ->visible(function (OffCyclePayroll $record) {
                         $user = Auth::user();
 
-                        if ($user->hasRole('Admin') || $user->can('payroll.create')) {
+                        if ($user->hasRole('Admin') || $user->can('payroll.manage')) {
                             return in_array($record->status, ['pending_approval', 'rejected']);
                         }
                         return false;
@@ -175,7 +175,8 @@ class OffCyclePayrollRecordResource extends Resource
                         return redirect(PayRunResource::getUrl('index'));
                     }),
 
-            ]);
+            ])
+            ->actionsColumnLabel('Actions');
     }
 
     public static function getCurrencySymbol(): string
@@ -218,7 +219,7 @@ class OffCyclePayrollRecordResource extends Resource
         // Admins, approvers, and managers always see the resource
         if (
             $user->hasRole('Admin') ||
-            $user->can('payroll.manageRecords') ||
+            $user->can('payroll.manage') ||
             $user->can('payroll.approve')
         ) {
             return true;

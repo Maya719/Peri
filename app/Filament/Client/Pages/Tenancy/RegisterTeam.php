@@ -6,6 +6,7 @@ use App\Http\Middleware\VerifyBillableIsSubscribed;
 use App\Models\Team;
 use App\Models\Country;
 use App\Models\Permission;
+use App\Models\Plan;
 use App\Models\Role;
 use DateTimeZone;
 use DiogoGPinto\AuthUIEnhancer\Pages\Auth\Concerns\HasCustomLayout;
@@ -33,6 +34,7 @@ class RegisterTeam extends RegisterTenant
             ->submit('register');
     }
 
+
     public function form(Form $form): Form
     {
         return $form
@@ -43,7 +45,7 @@ class RegisterTeam extends RegisterTenant
                     ->disk('public')
                     ->directory('uploads/companies/temp')
                     ->visibility('public')
-                    ->maxSize(2048) // 2MB
+                    ->maxSize(2048)
                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                     ->deletable()
                     ->downloadable()
@@ -52,24 +54,33 @@ class RegisterTeam extends RegisterTenant
 
                 TextInput::make('name')
                     ->label('Company Name')
-                    ->required(),
+                    ->required()
+                    ->unique(ignoreRecord: true)
+                    ->validationMessages([
+                        'unique' => 'This company name is already taken.',
+                    ]),
 
                 Select::make('country_id')
                     ->label('Country')
-                    ->options(fn() => Country::pluck('name', 'id')->toArray())
+                    ->options(fn () => Country::pluck('name', 'id')->toArray())
                     ->searchable()
                     ->live()
                     ->required(),
 
                 Select::make('timezone')
                     ->label('Timezone')
-                    ->options(
-                        collect(DateTimeZone::listIdentifiers())
-                            ->mapWithKeys(fn($tz) => [$tz => $tz])
-                            ->toArray()
-                    )
+                    ->options(function (callable $get) {
+                        $country = Country::find($get('country_id'));
+                        if (! $country || ! $country->code) {
+                            return [];
+                        }
+                        // Get timezones for the given country code (e.g. "US", "PK")
+                        $timezones = DateTimeZone::listIdentifiers(DateTimeZone::PER_COUNTRY, $country->code);
+                        return collect($timezones)->mapWithKeys(fn ($tz) => [$tz => $tz])->toArray();
+                    })
                     ->searchable()
                     ->required()
+                    ->reactive(),
             ]);
     }
 
@@ -82,6 +93,8 @@ class RegisterTeam extends RegisterTenant
             'team_id' => $team->id,
             'is_default' => true,
         ]);
+//        $this->subscribeFreeTrail($team);
+
         setPermissionsTeamId($team->id);
         $team->members()->attach(Auth::id());
         Auth::user()->assignRole($adminRole);
@@ -90,9 +103,15 @@ class RegisterTeam extends RegisterTenant
         $this->teamInitailize($team);
         return $team;
     }
-    
+
     protected function teamInitailize(Team $team)
     {
+        $ceoRole = Role::create([
+            'name' => 'CEO',
+            'guard_name' => 'web',
+            'team_id' => $team->id,
+            'is_default' => true,
+        ]);
         $amsRole = Role::create([
             'name' => 'AMS Manager',
             'guard_name' => 'web',
@@ -109,21 +128,28 @@ class RegisterTeam extends RegisterTenant
 
         $amsRole->givePermissionTo([
             'employees.manage',
-            'departments.manage',
-            'device.manage',
-            'leaveType.manage',
-            'attendancePolicies.manage',
-            'shifts.manage',
             'biometric.approve',
             'holiday.manage',
         ]);
 
         $payrollRole->givePermissionTo([
             'employees.manage',
-            'departments.manage',
-            'payroll.create',
             'payroll.approve',
-            'payroll.manageRecords'
+            'payroll.manage'
         ]);
+        $permissions = Permission::all();
+        $ceoRole->syncPermissions($permissions);
+    }
+    protected function subscribeFreeTrail(Team $tenant)
+    {
+        $plan = Plan::where('slug', 'free-trial')->first();
+        $tenant->newPlanSubscription($plan->slug, $plan);
+        $tenant->planSubscription($plan->slug)->recordFeatureUsage('funds', 0, false);
+        $tenant->planSubscription($plan->slug)->recordFeatureUsage('biometric-devices', 0, false);
+        $tenant->planSubscription($plan->slug)->recordFeatureUsage('shifts', 0, false);
+        $tenant->planSubscription($plan->slug)->recordFeatureUsage('employees', 0, false);
+        $tenant->planSubscription($plan->slug)->recordFeatureUsage('departments', 0, false);
+        $tenant->planSubscription($plan->slug)->recordFeatureUsage('roles', 0, false);
+        return true;
     }
 }

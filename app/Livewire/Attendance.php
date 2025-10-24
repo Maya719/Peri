@@ -75,7 +75,7 @@ class Attendance extends Component implements HasForms
                 Forms\Components\Grid::make(5)
                     ->schema([
                         Forms\Components\Select::make('userId')
-                            ->label('Employee')
+                            ->label(false)
                             ->searchable()
                             ->placeholder('Search Employee')
                             ->options(fn() => Filament::getTenant()->filteredUsers()->where('active', 1)->where('attendance_config', 1)->pluck('name', 'id'))
@@ -83,7 +83,7 @@ class Attendance extends Component implements HasForms
                             ->visible(fn() => Helper::isAssignUsers() || Auth::user()->hasRole('Admin')),
 
                         Forms\Components\Select::make('attendance_type')
-                            ->label('Attendance Type')
+                            ->label(false)
                             ->options([
                                 'onsite' => 'On Site',
                                 'offsite' => 'Remote',
@@ -96,7 +96,7 @@ class Attendance extends Component implements HasForms
 
 
                         Forms\Components\Select::make('department_id')
-                            ->label('Department')
+                            ->label(false)
                             ->options(fn() => Filament::getTenant()->departments()->pluck('name', 'id'))
                             ->searchable()
                             ->placeholder('Select Department')
@@ -104,7 +104,7 @@ class Attendance extends Component implements HasForms
                             ->visible(fn() => Helper::isAssignUsers() || Auth::user()->hasRole('Admin')),
 
                         Forms\Components\Select::make('shift_id')
-                            ->label('Shift')
+                            ->label(false)
                             ->options(fn() => Filament::getTenant()->shifts()->pluck('name', 'id'))
                             ->searchable()
                             ->placeholder('Select Shift')
@@ -112,7 +112,7 @@ class Attendance extends Component implements HasForms
                             ->visible(fn() => Helper::isAssignUsers() || Auth::user()->hasRole('Admin')),
 
                         DateRangePicker::make('range')
-                            ->label("Date")
+                            ->label(false)
                             ->ranges([
                                 'Today' => [now(), now()],
                                 'Yesterday' => [now()->subDay(), now()->subDay()],

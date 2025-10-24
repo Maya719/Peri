@@ -2,8 +2,10 @@
 
 namespace App\Filament\Client\Resources;
 
+use App\Facades\Helper;
 use App\Filament\Client\Resources\DepartmentResource\Pages;
 use App\Models\Department;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Card;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
@@ -15,6 +17,8 @@ use Filament\Tables\Columns\TextColumn;
 use Illuminate\Support\Facades\Auth;
 use Guava\FilamentKnowledgeBase\Contracts\HasKnowledgeBase;
 use Guava\FilamentKnowledgeBase\Facades\KnowledgeBase;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Collection;
 
 class DepartmentResource extends Resource implements HasKnowledgeBase
 {
@@ -60,15 +64,17 @@ class DepartmentResource extends Resource implements HasKnowledgeBase
             ->searchPlaceholder('Search Department')
             ->defaultSort('created_at', 'desc')
             ->actions([
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->after(function () {
+                        $tenant = Filament::getTenant();
+                        $subscription = $tenant->activePlanSubscriptions()->first();
+                        if ($subscription) {
+                            $subscription->reduceFeatureUsage('departments');
+                        }
+                    }),
                 Tables\Actions\EditAction::make(),
             ])
-            ->bulkActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make()
-                        ->visible(fn() => Auth::user()->hasRole('Admin')),
-                ]),
-            ]);
+            ->actionsColumnLabel('Actions');
     }
 
     public static function getPages(): array
@@ -79,16 +85,16 @@ class DepartmentResource extends Resource implements HasKnowledgeBase
             'edit' => Pages\EditDepartment::route('/{record}/edit'),
         ];
     }
-
+    
     // Permissions for CRUD operations
     public static function canViewAny(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin'));
+        return Auth::check() && (Auth::user()->hasRole('Admin')) && Helper::has_feature('departments');
     }
 
     public static function canCreate(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('Admin'));
+        return Auth::check() && (Auth::user()->hasRole('Admin')) && Helper::is_module_allowed('departments');
     }
 
     public static function canEdit($record): bool

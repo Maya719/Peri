@@ -185,4 +185,12 @@ class Team extends Model implements HasAvatar
     {
         return $this->belongsToMany(User::class, 'attendance_managers');
     }
+    public function payment_methods()
+    {
+        return $this->hasMany(PaymentMethod::class);
+    }
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
 }

@@ -48,7 +48,11 @@
                         <a href="{{ url('/client/register') }}"
                             class="hero-btn px-5 py-3 font-semibold rounded
                                   transition-all duration-300 hover:bg-white">
-                            Get Started →
+                            @if($freeplan)
+                                {{ $freeplan->trial_period}} {{ ucfirst($freeplan->trial_interval) }} free trial →
+                            @else
+                                Get Started →
+                            @endif
                         </a>
                     </div>
                 </div>
@@ -212,9 +216,9 @@
                                     @php
                                         $value = $plan->features()->where('name', $plan_feature)->first()->value;
                                     @endphp
-                                    @if ($value == 999)
+                                    @if ($value == 'true' || $value == 999)
                                         <i class="bi bi-check-circle-fill text-green-500 text-2xl"></i>
-                                    @elseif ($value == 0)
+                                    @elseif ($value == 'false' || $value == 0)
                                         <i class="bi bi-x-circle-fill text-red-500 text-2xl"></i>
                                     @else
                                         {{ $value }}
@@ -239,24 +243,7 @@
                 </tbody>
             </table>
         </div>
-
-        <p style="font-size: 2rem; color: black; margin-top: 10px;" class="fw-bold">
-            Project Types
-        </p>
-        @php
-            $modules1 = $row1->modules ?? [];
-            $modules2 = $row2->modules ?? [];
-            $modules3 = $row3->modules ?? [];
-        @endphp
-
-
-
-        <p style="font-size: 2rem; color: black; margin-top: 10px;" class="fw-bold">
-            Attendance
-        </p>
-
     </section>
-
     <!-- Strategy Sections -->
     <section class="overflow-hidden bg-white py-16 sm:py-17">
         <div class="mx-auto max-w-7xl px-6 lg:px-8">
@@ -531,7 +518,7 @@
                             </div>
 
                             <!-- Call to Action -->
-                            <a href="{{ url('/register') }}"
+                            <a href="{{ url('client/register') }}"
                                 class="px-4 py-3 text-[var(--primary)] bg-[var(--secondary)] font-semibold rounded
                                   transition-all duration-300 border-0 hover:bg-[var(--primary)] hover:text-white">
                                 Get Free Demo →
@@ -582,7 +569,7 @@
                                         </div>
                                         <p class="text-gray-200 leading-relaxed" x-text="section.description"></p>
                                         <a href="{{ url('/register') }}"
-                                            class="inline-block mt-4 bg-[var(--primary)] text-white px-4 py-2 rounded-lg font-bold 
+                                            class="inline-block mt-4 bg-[var(--primary)] text-white px-4 py-2 rounded-lg font-bold
                                         hover:bg-[var(--secondary)] transition duration-300">
                                             View →
                                         </a>

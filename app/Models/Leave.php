@@ -54,7 +54,7 @@ class Leave extends Model
 
     public function leaveLogs()
     {
-        return $this->hasMany(\App\Models\LeaveLog::class);
+        return $this->hasMany(LeaveLog::class);
     }
 
     public function leaveType()

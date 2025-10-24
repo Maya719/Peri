@@ -2,6 +2,7 @@
 
 namespace App\Filament\Client\Widgets;
 
+use App\Facades\Helper;
 use App\Models\Role;
 use EightyNine\FilamentAdvancedWidget\AdvancedTableWidget as BaseWidget;
 use Illuminate\Database\Eloquent\Builder;
@@ -64,6 +65,9 @@ class UserMonthlyAttendanceWidget extends BaseWidget
             return false;
         }
 
+        if (!Helper::has_feature('attendance')) {
+            return false;
+        }
         return true;
     }
 
